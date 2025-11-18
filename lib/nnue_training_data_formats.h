@@ -5119,6 +5119,7 @@ namespace chess
         return BaseType::isSquareAttackedAfterMove(move, kingSquare(!m_sideToMove), m_sideToMove);
     }
 
+    // TODO: 需要修改
     [[nodiscard]] inline bool Position::isMoveLegal(Move move) const
     {
         return
@@ -6889,10 +6890,13 @@ namespace binpack
         return a;
     }
 
+    // TODO: 引用chess库, 需要修改
     struct TrainingDataEntry
     {
+        // TODO: 修改chess库
         chess::Position pos;  // 局面
         chess::Move move;     // 走法
+
         std::int16_t score;   // 局面评估分数
         std::uint16_t ply;    // 步数(从游戏开始算起)
         std::int16_t result;  // 游戏结果(1=白胜, -1=黑胜, 0=平局)
@@ -6900,12 +6904,14 @@ namespace binpack
         // 走法是否合法
         [[nodiscard]] bool isValid() const
         {
+            // TODO: 改库
             return pos.isMoveLegal(move);
         }
 
         // 是否吃子
         [[nodiscard]] bool isCapturingMove() const
         {
+            // TODO: 可能需要改库
             return pos.pieceAt(move.to) != chess::Piece::none() &&
                    pos.pieceAt(move.to).color() != pos.pieceAt(move.from).color(); // Exclude castling
         }
@@ -6953,6 +6959,7 @@ namespace binpack
 
         [[nodiscard]] bool isInCheck() const
         {
+            // TODO: 修改库
             return pos.isCheck();
         }
     };
@@ -6960,7 +6967,7 @@ namespace binpack
     [[nodiscard]] inline TrainingDataEntry packedSfenValueToTrainingDataEntry(const nodchip::PackedSfenValue& psv)
     {
         TrainingDataEntry ret;
-
+        // TODO: 改库
         ret.pos = nodchip::pos_from_packed_sfen(psv.sfen);
         ret.move = psv.move.toMove();
         ret.score = psv.score;

@@ -368,13 +368,95 @@ struct HalfKAv2_hmFactorized {
 };
 
 // TODO: 加上自建特征集
-// struct HalfATA {
-//     // TODO
-// }
+struct HalfATA {
+    // TODO
+    static constexpr int NUM_SQ = 63;
+    static constexpr int NUM_PT = 16;
+    static constexpr int NUM_ATTACK_BUCKETS = 6;
+    static constexpr int NUM_PLANES = NUM_SQ * NUM_PT;
+    static constexpr int INPUTS = NUM_PLANES * NUM_ATTACK_BUCKETS;
 
-// struct HalfATAFactorized {
-//     // TODO
-// }
+    static constexpr int MAX_ACTIVE_FEATURES = 32;
+
+
+    /**
+     * 接收局面信息, 根据特征集定义返回单一特征下标
+     * @param color 棋子颜色
+     * @param attack_bucket 攻击桶
+     * @param sq 棋子位置
+     * @param p 棋子类型
+     * @return 活跃特征下标
+     */
+    static int feature_index(Color color, int attack_bucket, Square sq, Piece p)
+    {
+        auto p_idx = static_cast<int>(p.type()) * 2 + (p.color() != color);  // 己方偶数, 对方奇数
+        return static_cast<int>(sq) + p_idx * NUM_SQ + attack_bucket * NUM_PLANES;
+    }
+
+    /**
+     * 从pos对象中解包棋局信息, 分类攻击等级
+     */
+    static int classify_attack_buckets(const Position &pos) {
+        // TODO: 完善stub
+        return 0;
+    }
+
+    /**
+     * 根据训练数据条目信息, 填写特征下标数组和特征值数组, 用于构建SparseBatch
+     * @param e 训练数据条目信息
+     * @param features 特征下标数组
+     * @param values 特征激活值数组
+     * @param color 棋子颜色
+     * @return {激活值个数, 总特征维数}
+     */
+    static std::pair<int, int> fill_features_sparse(const TrainingDataEntry& e, int* features, float* values, Color color)
+    {
+        auto& pos = e.pos;
+        auto pieces = pos.piecesBB();
+        int attack_bucket = classify_attack_buckets(pos);
+
+        int j = 0;
+        for(Square sq : pieces)
+        {
+            auto p = pos.pieceAt(sq);
+            values[j] = 1.0f;
+            features[j] = feature_index(color, attack_bucket, sq, p);
+            ++j;
+        }
+
+        return { j, INPUTS };
+    }
+};
+
+struct HalfATAFactorized {
+    // TODO
+    // Factorized features
+    static constexpr int NUM_PT = 16;
+    static constexpr int PIECE_INPUTS = HalfATA::NUM_SQ * NUM_PT;
+    static constexpr int INPUTS = HalfATA::INPUTS + PIECE_INPUTS;
+
+    static constexpr int MAX_PIECE_FEATURES = 32;
+    static constexpr int MAX_ACTIVE_FEATURES = HalfATA::MAX_ACTIVE_FEATURES + MAX_PIECE_FEATURES;
+
+    static std::pair<int, int> fill_features_sparse(const TrainingDataEntry& e, int* features, float* values, Color color)
+    {
+        const auto [start_j, offset] = HalfATA::fill_features_sparse(e, features, values, color);
+        auto& pos = e.pos;
+        auto pieces = pos.piecesBB();
+
+        int j = start_j;
+        for(Square sq : pieces)
+        {
+            auto p = pos.pieceAt(sq);
+            auto p_idx = static_cast<int>(p.type()) * 2 + (p.color() != color);
+            values[j] = 1.0f;
+            features[j] = offset + (p_idx * HalfATA::NUM_SQ) + static_cast<int>(sq);
+            ++j;
+        }
+
+        return { j, INPUTS };
+    }
+};
 
 /*
  * 特征集抽象类
@@ -394,9 +476,9 @@ struct FeatureSet
     }
 };
 
-/*
+/**
  * 一批训练数据的抽象类
-**/
+ */
 struct SparseBatch
 {
     static constexpr bool IS_BATCH = true;
@@ -476,6 +558,7 @@ private:
     template <typename... Ts>
     void fill_entry(FeatureSet<Ts...>, int i, const TrainingDataEntry& e)
     {
+        // TODO: 涉及pos, piecesBB, 改库
         is_white[i] = static_cast<float>(e.pos.sideToMove() == Color::White);
         outcome[i] = (e.result + 1.0f) / 2.0f;
         score[i] = e.score;
@@ -485,7 +568,7 @@ private:
     }
 
     /*
-     * 填写活跃特征值, 记录活跃特征索引和数量
+     * 填写活跃特SparseBatch征值, 记录活跃特征索引和数量
     **/
     template <typename... Ts>
     void fill_features(FeatureSet<Ts...>, int i, const TrainingDataEntry& e)
@@ -1091,14 +1174,14 @@ extern "C" {
             return new SparseBatch(FeatureSet<HalfKAv2_hmFactorized>{}, entries);
         }
         // TODO
-        // else if (feature_set == "HalfATA")
-        // {
-        //     return new SparseBatch(FeatureSet<HalfATA>{}, entries);
-        // }
-        // else if (feature_set == "HalfATA^")
-        // {
-        //     return new SparseBatch(FeatureSet<HalfATAFactorized>{}, entries);
-        // }
+        else if (feature_set == "HalfATA")
+        {
+            return new SparseBatch(FeatureSet<HalfATA>{}, entries);
+        }
+        else if (feature_set == "HalfATA^")
+        {
+            return new SparseBatch(FeatureSet<HalfATAFactorized>{}, entries);
+        }
         fprintf(stderr, "Unknown feature_set %s\n", feature_set_c);
         return nullptr;
     }
@@ -1118,7 +1201,15 @@ extern "C" {
     }
 
     // changing the signature needs matching changes in data_loader/_native.py
-    EXPORT Stream<SparseBatch>* CDECL create_sparse_batch_stream(const char* feature_set_c, int concurrency, int num_files, const char* const* filenames, int batch_size, bool cyclic, DataloaderSkipConfig config)
+    EXPORT Stream<SparseBatch>* CDECL create_sparse_batch_stream(
+        const char* feature_set_c,
+        int concurrency,
+        int num_files,
+        const char* const* filenames,
+        int batch_size,
+        bool cyclic,
+        DataloaderSkipConfig config
+    )
     {
         auto skipPredicate = make_skip_predicate(config);
         auto filenames_vec = std::vector<std::string>(filenames, filenames + num_files);
@@ -1157,14 +1248,14 @@ extern "C" {
             return new FeaturedBatchStream<FeatureSet<HalfKAv2_hmFactorized>, SparseBatch>(concurrency, filenames_vec, batch_size, cyclic, skipPredicate);
         }
         // TODO: 加上自建特征集
-        // else if (feature_set == "HalfATA")
-        // {
-        //     return new FeaturedBatchStream<FeatureSet<HalfATA>, SparseBatch>(concurrency, filenames_vec, batch_size, cyclic, skipPredicate);
-        // }
-        // else if (feature_set == "HalfATA^")
-        // {
-        //     return new FeaturedBatchStream<FeatureSet<HalfATAFactorized>, SparseBatch>(concurrency, filenames_vec, batch_size, cyclic, skipPredicate);
-        // }
+        else if (feature_set == "HalfATA")
+        {
+            return new FeaturedBatchStream<FeatureSet<HalfATA>, SparseBatch>(concurrency, filenames_vec, batch_size, cyclic, skipPredicate);
+        }
+        else if (feature_set == "HalfATA^")
+        {
+            return new FeaturedBatchStream<FeatureSet<HalfATAFactorized>, SparseBatch>(concurrency, filenames_vec, batch_size, cyclic, skipPredicate);
+        }
         fprintf(stderr, "Unknown feature_set %s\n", feature_set_c);
         return nullptr;
     }
