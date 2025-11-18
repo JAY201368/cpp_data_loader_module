@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "*.cjson": "jsonc",
+        "*.py": "python",
+        "*.wxs": "javascript",
+        "*.wxss": "css",
+        "*.tcc": "cpp",
+        "chrono": "cpp",
+        "functional": "cpp",
+        "variant": "cpp",
+        "string_view": "cpp"
+    }
+}

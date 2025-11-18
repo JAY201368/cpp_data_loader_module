@@ -640,14 +640,16 @@ namespace chess
         return fromOrdinal<Color>(ordinal(c) ^ 1);
     }
 
-    enum struct PieceType : std::uint8_t
+    enum struct PieceType : std::uint16_t
     {
-        Pawn,
-        Knight,
-        Bishop,
-        Rook,
-        Queen,
-        King,
+        Lion,
+        Tiger,
+        Dog,
+        Hachimi,
+        Rat,
+        Cheetah,
+        Wolf,
+        Elephant,
 
         None
     };
@@ -658,16 +660,18 @@ namespace chess
         using IdType = int;
         using EnumType = PieceType;
 
-        static constexpr int cardinality = 7;
+        static constexpr int cardinality = 9;
         static constexpr bool isNaturalIndex = true;
 
         static constexpr std::array<EnumType, cardinality> values{
-            PieceType::Pawn,
-            PieceType::Knight,
-            PieceType::Bishop,
-            PieceType::Rook,
-            PieceType::Queen,
-            PieceType::King,
+            PieceType::Lion,
+            PieceType::Tiger,
+            PieceType::Dog,
+            PieceType::Hachimi,
+            PieceType::Rat,
+            PieceType::Cheetah,
+            PieceType::Wolf,
+            PieceType::Elephant,
             PieceType::None
         };
 
@@ -685,17 +689,17 @@ namespace chess
 
         [[nodiscard]] static constexpr std::string_view toString(EnumType p, Color c) noexcept
         {
-            return std::string_view("PpNnBbRrQqKk ").substr((chess::ordinal(p) * 2 + chess::ordinal(c)), 1);
+            return std::string_view("LlTtDdHhRrCcWwEe ").substr((chess::ordinal(p) * 2 + chess::ordinal(c)), 1);
         }
 
         [[nodiscard]] static constexpr char toChar(EnumType p, Color c) noexcept
         {
-            return "PpNnBbRrQqKk "[chess::ordinal(p) * 2 + chess::ordinal(c)];
+            return "LlTtDdHhRrCcWwEe "[chess::ordinal(p) * 2 + chess::ordinal(c)];
         }
 
         [[nodiscard]] static constexpr std::optional<PieceType> fromChar(char c) noexcept
         {
-            auto it = std::string_view("PpNnBbRrQqKk ").find(c);
+            auto it = std::string_view("LlTtDdHhRrCcWwEe ").find(c);
             if (it == std::string::npos) return {};
             else return static_cast<PieceType>(it/2);
         }
@@ -770,7 +774,7 @@ namespace chess
         {
         }
 
-        std::uint8_t m_id; // lowest bit is a color, 7 highest bits are a piece type
+        std::uint16_t m_id; // lowest bit is a color, 1-8 bits are a piece type, with the rest unused
     };
 
     [[nodiscard]] constexpr Piece operator|(PieceType type, Color color) noexcept
@@ -783,19 +787,23 @@ namespace chess
         return Piece(type, color);
     }
 
-    constexpr Piece whitePawn = Piece(PieceType::Pawn, Color::White);
-    constexpr Piece whiteKnight = Piece(PieceType::Knight, Color::White);
-    constexpr Piece whiteBishop = Piece(PieceType::Bishop, Color::White);
-    constexpr Piece whiteRook = Piece(PieceType::Rook, Color::White);
-    constexpr Piece whiteQueen = Piece(PieceType::Queen, Color::White);
-    constexpr Piece whiteKing = Piece(PieceType::King, Color::White);
+    constexpr Piece whiteLion = Piece(PieceType::Lion, Color::White);
+    constexpr Piece whiteTiger = Piece(PieceType::Tiger, Color::White);
+    constexpr Piece whiteDog = Piece(PieceType::Dog, Color::White);
+    constexpr Piece whiteHachimi = Piece(PieceType::Hachimi, Color::White);
+    constexpr Piece whiteRat = Piece(PieceType::Rat, Color::White);
+    constexpr Piece whiteCheetah = Piece(PieceType::Cheetah, Color::White);
+    constexpr Piece whiteWolf = Piece(PieceType::Wolf, Color::White);
+    constexpr Piece whiteElephant = Piece(PieceType::Elephant, Color::White);
 
-    constexpr Piece blackPawn = Piece(PieceType::Pawn, Color::Black);
-    constexpr Piece blackKnight = Piece(PieceType::Knight, Color::Black);
-    constexpr Piece blackBishop = Piece(PieceType::Bishop, Color::Black);
-    constexpr Piece blackRook = Piece(PieceType::Rook, Color::Black);
-    constexpr Piece blackQueen = Piece(PieceType::Queen, Color::Black);
-    constexpr Piece blackKing = Piece(PieceType::King, Color::Black);
+    constexpr Piece blackLion = Piece(PieceType::Lion, Color::Black);
+    constexpr Piece blackTiger = Piece(PieceType::Tiger, Color::Black);
+    constexpr Piece blackDog = Piece(PieceType::Dog, Color::Black);
+    constexpr Piece blackHachimi = Piece(PieceType::Hachimi, Color::Black);
+    constexpr Piece blackRat = Piece(PieceType::Rat, Color::Black);
+    constexpr Piece blackCheetah = Piece(PieceType::Cheetah, Color::Black);
+    constexpr Piece blackWolf = Piece(PieceType::Wolf, Color::Black);
+    constexpr Piece blackElephant = Piece(PieceType::Elephant, Color::Black);
 
     static_assert(Piece::none().type() == PieceType::None);
 
@@ -805,22 +813,26 @@ namespace chess
         using IdType = int;
         using EnumType = Piece;
 
-        static constexpr int cardinality = 13;
+        static constexpr int cardinality = 17;
         static constexpr bool isNaturalIndex = true;
 
         static constexpr std::array<EnumType, cardinality> values{
-            whitePawn,
-            blackPawn,
-            whiteKnight,
-            blackKnight,
-            whiteBishop,
-            blackBishop,
-            whiteRook,
-            blackRook,
-            whiteQueen,
-            blackQueen,
-            whiteKing,
-            blackKing,
+            whiteLion,
+            blackLion,
+            whiteTiger,
+            blackTiger,
+            whiteDog,
+            blackDog,
+            whiteHachimi,
+            blackHachimi,
+            whiteRat,
+            blackRat,
+            whiteCheetah,
+            blackCheetah,
+            whiteWolf,
+            blackWolf,
+            whiteElephant,
+            blackElephant,
             Piece::none()
         };
 
@@ -838,17 +850,17 @@ namespace chess
 
         [[nodiscard]] static constexpr std::string_view toString(EnumType p) noexcept
         {
-            return std::string_view("PpNnBbRrQqKk ").substr(ordinal(p), 1);
+            return std::string_view("LlTtDdHhRrCcWwEe ").substr(ordinal(p), 1);
         }
 
         [[nodiscard]] static constexpr char toChar(EnumType p) noexcept
         {
-            return "PpNnBbRrQqKk "[ordinal(p)];
+            return "LlTtDdHhRrCcWwEe "[ordinal(p)];
         }
 
         [[nodiscard]] static constexpr std::optional<Piece> fromChar(char c) noexcept
         {
-            auto it = std::string_view("PpNnBbRrQqKk ").find(c);
+            auto it = std::string_view("LlTtDdHhRrCcWwEe ").find(c);
             if (it == std::string::npos) return {};
             else return Piece::fromId(static_cast<int>(it));
         }
@@ -961,31 +973,34 @@ namespace chess
     using File = Coord<FileTag>;
     using Rank = Coord<RankTag>;
 
-    constexpr File fileA = File(0);
-    constexpr File fileB = File(1);
-    constexpr File fileC = File(2);
-    constexpr File fileD = File(3);
-    constexpr File fileE = File(4);
-    constexpr File fileF = File(5);
-    constexpr File fileG = File(6);
-    constexpr File fileH = File(7);
-
-    constexpr Rank rank1 = Rank(0);
-    constexpr Rank rank2 = Rank(1);
-    constexpr Rank rank3 = Rank(2);
-    constexpr Rank rank4 = Rank(3);
-    constexpr Rank rank5 = Rank(4);
-    constexpr Rank rank6 = Rank(5);
-    constexpr Rank rank7 = Rank(6);
-    constexpr Rank rank8 = Rank(7);
-
+    constexpr File fileA = File(0);    //    a   b   c   d   e   f   g
+    constexpr File fileB = File(1);    //  ┌───┬───┬───┬───┬───┬───┬───┐
+    constexpr File fileC = File(2);    //9 │   │   │   │   │   │   │   │ rank9
+    constexpr File fileD = File(3);    //  ├───┼───┼───┼───┼───┼───┼───┤
+    constexpr File fileE = File(4);    //8 │   │   │   │   │   │   │   │ rank8
+    constexpr File fileF = File(5);    //  ├───┼───┼───┼───┼───┼───┼───┤
+    constexpr File fileG = File(6);    //7 │   │   │   │   │   │   │   │ rank7
+                                       //  ├───┼───┼───┼───┼───┼───┼───┤
+    constexpr Rank rank1 = Rank(0);    //6 │   │   │   │   │   │   │   │ rank6
+    constexpr Rank rank2 = Rank(1);    //  ├───┼───┼───┼───┼───┼───┼───┤
+    constexpr Rank rank3 = Rank(2);    //5 │   │   │   │   │   │   │   │ rank5
+    constexpr Rank rank4 = Rank(3);    //  ├───┼───┼───┼───┼───┼───┼───┤
+    constexpr Rank rank5 = Rank(4);    //4 │   │   │   │   │   │   │   │ rank4
+    constexpr Rank rank6 = Rank(5);    //  ├───┼───┼───┼───┼───┼───┼───┤
+    constexpr Rank rank7 = Rank(6);    //3 │   │   │   │   │   │   │   │ rank3
+    constexpr Rank rank8 = Rank(7);    //  ├───┼───┼───┼───┼───┼───┼───┤
+    constexpr Rank rank9 = Rank(8);    //2 │   │   │   │   │   │   │   │ rank2
+                                       //  ├───┼───┼───┼───┼───┼───┼───┤
+                                       //1 │   │   │   │   │   │   │   │ rank1
+                                       //  └───┴───┴───┴───┴───┴───┴───┘
+                                       //fileA fileB fileC fileD fileE fileF fileG
     template <>
     struct EnumTraits<File>
     {
         using IdType = int;
         using EnumType = File;
 
-        static constexpr int cardinality = 8;
+        static constexpr int cardinality = 7;
         static constexpr bool isNaturalIndex = true;
 
         [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
@@ -1002,14 +1017,14 @@ namespace chess
 
         [[nodiscard]] static constexpr std::string_view toString(EnumType c) noexcept
         {
-            assert(ordinal(c) >= 0 && ordinal(c) < 8);
+            assert(ordinal(c) >= 0 && ordinal(c) < 7);
 
-            return std::string_view("abcdefgh").substr(ordinal(c), 1);
+            return std::string_view("abcdefg").substr(ordinal(c), 1);
         }
 
         [[nodiscard]] static constexpr std::optional<File> fromChar(char c) noexcept
         {
-            if (c < 'a' || c > 'h') return {};
+            if (c < 'a' || c > 'g') return {};
             return static_cast<File>(c - 'a');
         }
 
@@ -1027,7 +1042,7 @@ namespace chess
         using IdType = int;
         using EnumType = Rank;
 
-        static constexpr int cardinality = 8;
+        static constexpr int cardinality = 9;
         static constexpr bool isNaturalIndex = true;
 
         [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
@@ -1044,14 +1059,14 @@ namespace chess
 
         [[nodiscard]] static constexpr std::string_view toString(EnumType c) noexcept
         {
-            assert(ordinal(c) >= 0 && ordinal(c) < 8);
+            assert(ordinal(c) >= 0 && ordinal(c) < 9);
 
-            return std::string_view("12345678").substr(ordinal(c), 1);
+            return std::string_view("123456789").substr(ordinal(c), 1);
         }
 
         [[nodiscard]] static constexpr std::optional<Rank> fromChar(char c) noexcept
         {
-            if (c < '1' || c > '8') return {};
+            if (c < '1' || c > '9') return {};
             return static_cast<Rank>(c - '1');
         }
 
@@ -1065,7 +1080,7 @@ namespace chess
 
     // files east
     // ranks north
-    struct FlatSquareOffset
+    struct FlatSquareOffset //棋子偏移量, 用于表示棋子移动的距离和方向
     {
         std::int8_t value;
 
@@ -1075,7 +1090,7 @@ namespace chess
         }
 
         constexpr FlatSquareOffset(int files, int ranks) noexcept :
-            value(files + ranks * cardinality<File>())
+            value(files + ranks * cardinality<File>()) //TODO:设计新的编码方式,这里原有乘以8改为了7，无法使用位运算<<3来获得rank
         {
             assert(files + ranks * cardinality<File>() >= std::numeric_limits<std::int8_t>::min());
             assert(files + ranks * cardinality<File>() <= std::numeric_limits<std::int8_t>::max());
@@ -1093,7 +1108,7 @@ namespace chess
         }
     };
 
-    struct Offset
+    struct Offset //棋子偏移量, 用于表示棋子移动的距离和方向
     {
         std::int8_t files;
         std::int8_t ranks;
@@ -1155,7 +1170,7 @@ namespace chess
 
         [[nodiscard]] constexpr bool isOk() const
         {
-            return file >= fileA && file <= fileH && rank >= rank1 && rank <= rank8;
+            return file >= fileA && file <= fileG && rank >= rank1 && rank <= rank9;
         }
     };
 
@@ -1165,7 +1180,7 @@ namespace chess
         static constexpr std::int8_t m_noneId = cardinality<Rank>() * cardinality<File>();
 
         static constexpr std::uint8_t fileMask = 0b111;
-        static constexpr std::uint8_t rankMask = 0b111000;
+        static constexpr std::uint8_t rankMask = 0b1111000; //rank最大为9，因此需要4位掩码来表示
         static constexpr std::uint8_t rankShift = 3;
 
     public:
@@ -1255,9 +1270,9 @@ namespace chess
         [[nodiscard]] constexpr friend Square operator+(Square sq, Offset offset)
         {
             assert(sq.file() + offset.files >= fileA);
-            assert(sq.file() + offset.files <= fileH);
+            assert(sq.file() + offset.files <= fileG);
             assert(sq.rank() + offset.ranks >= rank1);
-            assert(sq.rank() + offset.ranks <= rank8);
+            assert(sq.rank() + offset.ranks <= rank9);
             return operator+(sq, offset.flat());
         }
 
@@ -1331,6 +1346,7 @@ namespace chess
     constexpr Square a6(fileA, rank6);
     constexpr Square a7(fileA, rank7);
     constexpr Square a8(fileA, rank8);
+    constexpr Square a9(fileA, rank9);
 
     constexpr Square b1(fileB, rank1);
     constexpr Square b2(fileB, rank2);
@@ -1340,6 +1356,7 @@ namespace chess
     constexpr Square b6(fileB, rank6);
     constexpr Square b7(fileB, rank7);
     constexpr Square b8(fileB, rank8);
+    constexpr Square b9(fileB, rank9);
 
     constexpr Square c1(fileC, rank1);
     constexpr Square c2(fileC, rank2);
@@ -1349,6 +1366,7 @@ namespace chess
     constexpr Square c6(fileC, rank6);
     constexpr Square c7(fileC, rank7);
     constexpr Square c8(fileC, rank8);
+    constexpr Square c9(fileC, rank9);
 
     constexpr Square d1(fileD, rank1);
     constexpr Square d2(fileD, rank2);
@@ -1358,6 +1376,7 @@ namespace chess
     constexpr Square d6(fileD, rank6);
     constexpr Square d7(fileD, rank7);
     constexpr Square d8(fileD, rank8);
+    constexpr Square d9(fileD, rank9);
 
     constexpr Square e1(fileE, rank1);
     constexpr Square e2(fileE, rank2);
@@ -1367,7 +1386,8 @@ namespace chess
     constexpr Square e6(fileE, rank6);
     constexpr Square e7(fileE, rank7);
     constexpr Square e8(fileE, rank8);
-
+    constexpr Square e9(fileE, rank9);
+    
     constexpr Square f1(fileF, rank1);
     constexpr Square f2(fileF, rank2);
     constexpr Square f3(fileF, rank3);
@@ -1376,7 +1396,8 @@ namespace chess
     constexpr Square f6(fileF, rank6);
     constexpr Square f7(fileF, rank7);
     constexpr Square f8(fileF, rank8);
-
+    constexpr Square f9(fileF, rank9);
+    
     constexpr Square g1(fileG, rank1);
     constexpr Square g2(fileG, rank2);
     constexpr Square g3(fileG, rank3);
@@ -1385,24 +1406,22 @@ namespace chess
     constexpr Square g6(fileG, rank6);
     constexpr Square g7(fileG, rank7);
     constexpr Square g8(fileG, rank8);
-
-    constexpr Square h1(fileH, rank1);
-    constexpr Square h2(fileH, rank2);
-    constexpr Square h3(fileH, rank3);
-    constexpr Square h4(fileH, rank4);
-    constexpr Square h5(fileH, rank5);
-    constexpr Square h6(fileH, rank6);
-    constexpr Square h7(fileH, rank7);
-    constexpr Square h8(fileH, rank8);
+    constexpr Square g9(fileG, rank9);
 
     static_assert(e1.color() == Color::Black);
-    static_assert(e8.color() == Color::White);
+    static_assert(e9.color() == Color::White);
 
     static_assert(e1.file() == fileE);
     static_assert(e1.rank() == rank1);
 
     static_assert(e1.flippedHorizontally() == d1);
-    static_assert(e1.flippedVertically() == e8);
+    static_assert(e1.flippedVertically() == e9); //TODO: wtf?
+    /*TODO:设计新编码方式，
+     *表达式必须含有常量值C/C++(28)
+     *nnue_training_data_formats.h(1418, 19): 
+     *无法调用非 constexpr 函数 "_wassert" 
+     *(已声明 所在行数:24，所属文件:"D:\mingw64\x86_64-w64-mingw32\include\assert.h")
+     */
 
     template <>
     struct EnumTraits<Square>
@@ -1414,14 +1433,15 @@ namespace chess
         static constexpr bool isNaturalIndex = true;
 
         static constexpr std::array<EnumType, cardinality> values{
-            a1, b1, c1, d1, e1, f1, g1, h1,
-            a2, b2, c2, d2, e2, f2, g2, h2,
-            a3, b3, c3, d3, e3, f3, g3, h3,
-            a4, b4, c4, d4, e4, f4, g4, h4,
-            a5, b5, c5, d5, e5, f5, g5, h5,
-            a6, b6, c6, d6, e6, f6, g6, h6,
-            a7, b7, c7, d7, e7, f7, g7, h7,
-            a8, b8, c8, d8, e8, f8, g8, h8
+            a1, b1, c1, d1, e1, f1, g1,
+            a2, b2, c2, d2, e2, f2, g2,
+            a3, b3, c3, d3, e3, f3, g3, 
+            a4, b4, c4, d4, e4, f4, g4,
+            a5, b5, c5, d5, e5, f5, g5,
+            a6, b6, c6, d6, e6, f6, g6,
+            a7, b7, c7, d7, e7, f7, g7,
+            a8, b8, c8, d8, e8, f8, g8,
+            a9, b9, c9, d9, e9, f9, g9,
         };
 
         [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
@@ -1442,14 +1462,15 @@ namespace chess
 
             return
                 std::string_view(
-                    "a1b1c1d1e1f1g1h1"
-                    "a2b2c2d2e2f2g2h2"
-                    "a3b3c3d3e3f3g3h3"
-                    "a4b4c4d4e4f4g4h4"
-                    "a5b5c5d5e5f5g5h5"
-                    "a6b6c6d6e6f6g6h6"
-                    "a7b7c7d7e7f7g7h7"
-                    "a8b8c8d8e8f8g8h8"
+                    "a1b1c1d1e1f1g1"
+                    "a2b2c2d2e2f2g2"
+                    "a3b3c3d3e3f3g3"
+                    "a4b4c4d4e4f4g4"
+                    "a5b5c5d5e5f5g5"
+                    "a6b6c6d6e6f6g6"
+                    "a7b7c7d7e7f7g7"
+                    "a8b8c8d8e8f8g8"
+                    "a9b9c9d9e9f9g9"
                 ).substr(ordinal(sq) * 2, 2);
         }
 
@@ -1459,22 +1480,23 @@ namespace chess
 
             const char f = sv[0];
             const char r = sv[1];
-            if (f < 'a' || f > 'h') return {};
-            if (r < '1' || r > '8') return {};
+            if (f < 'a' || f > 'g') return {};
+            if (r < '1' || r > '9') return {};
 
             return Square(static_cast<File>(f - 'a'), static_cast<Rank>(r - '1'));
         }
     };
 
     static_assert(toString(d1) == std::string_view("d1"));
-    static_assert(values<Square>()[29] == f4);
+    static_assert(values<Square>()[29] == b5);
 
     enum struct MoveType : std::uint8_t
     {
-        Normal,
-        Promotion,
-        Castle,
-        EnPassant
+        Normal
+        // 斗兽棋只需要普通走子
+        // Promotion,
+        // Castle,
+        // EnPassant
     };
 
     template <>
@@ -1483,14 +1505,14 @@ namespace chess
         using IdType = int;
         using EnumType = MoveType;
 
-        static constexpr int cardinality = 4;
+        static constexpr int cardinality = 1;
         static constexpr bool isNaturalIndex = true;
 
         static constexpr std::array<EnumType, cardinality> values{
-            MoveType::Normal,
-            MoveType::Promotion,
-            MoveType::Castle,
-            MoveType::EnPassant
+            MoveType::Normal
+            // MoveType::Promotion,
+            // MoveType::Castle,
+            // MoveType::EnPassant
         };
 
         [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
@@ -1506,43 +1528,44 @@ namespace chess
         }
     };
 
-    enum struct CastleType : std::uint8_t
-    {
-        Short,
-        Long
-    };
+    // 斗兽棋不需要王车易位
+    // enum struct CastleType : std::uint8_t
+    // {
+    //     Short,
+    //     Long
+    // };
 
-    [[nodiscard]] constexpr CastleType operator!(CastleType ct)
-    {
-        return static_cast<CastleType>(static_cast<std::uint8_t>(ct) ^ 1);
-    }
+    // [[nodiscard]] constexpr CastleType operator!(CastleType ct)
+    // {
+    //     return static_cast<CastleType>(static_cast<std::uint8_t>(ct) ^ 1);
+    // }
 
-    template <>
-    struct EnumTraits<CastleType>
-    {
-        using IdType = int;
-        using EnumType = CastleType;
+    // template <>
+    // struct EnumTraits<CastleType>
+    // {
+    //     using IdType = int;
+    //     using EnumType = CastleType;
 
-        static constexpr int cardinality = 2;
-        static constexpr bool isNaturalIndex = true;
+    //     static constexpr int cardinality = 2;
+    //     static constexpr bool isNaturalIndex = true;
 
-        static constexpr std::array<EnumType, cardinality> values{
-            CastleType::Short,
-            CastleType::Long
-        };
+    //     static constexpr std::array<EnumType, cardinality> values{
+    //         CastleType::Short,
+    //         CastleType::Long
+    //     };
 
-        [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
-        {
-            return static_cast<IdType>(c);
-        }
+    //     [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
+    //     {
+    //         return static_cast<IdType>(c);
+    //     }
 
-        [[nodiscard]] static constexpr EnumType fromOrdinal(IdType id) noexcept
-        {
-            assert(id >= 0 && id < cardinality);
+    //     [[nodiscard]] static constexpr EnumType fromOrdinal(IdType id) noexcept
+    //     {
+    //         assert(id >= 0 && id < cardinality);
 
-            return static_cast<EnumType>(id);
-        }
-    };
+    //         return static_cast<EnumType>(id);
+    //     }
+    // };
 
     struct CompressedMove;
 
