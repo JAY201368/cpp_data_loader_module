@@ -980,7 +980,7 @@ namespace chess
     constexpr File fileE = File(4);    //8 │   │   │   │   │   │   │   │ rank8
     constexpr File fileF = File(5);    //  ├───┼───┼───┼───┼───┼───┼───┤
     constexpr File fileG = File(6);    //7 │   │   │   │   │   │   │   │ rank7
-                                       //  ├───┼───┼───┼───┼───┼───┼───┤
+                                         //  ├───┼───┼───┼───┼───┼───┼───┤
     constexpr Rank rank1 = Rank(0);    //6 │   │   │   │   │   │   │   │ rank6
     constexpr Rank rank2 = Rank(1);    //  ├───┼───┼───┼───┼───┼───┼───┤
     constexpr Rank rank3 = Rank(2);    //5 │   │   │   │   │   │   │   │ rank5
@@ -990,10 +990,10 @@ namespace chess
     constexpr Rank rank7 = Rank(6);    //3 │   │   │   │   │   │   │   │ rank3
     constexpr Rank rank8 = Rank(7);    //  ├───┼───┼───┼───┼───┼───┼───┤
     constexpr Rank rank9 = Rank(8);    //2 │   │   │   │   │   │   │   │ rank2
-                                       //  ├───┼───┼───┼───┼───┼───┼───┤
-                                       //1 │   │   │   │   │   │   │   │ rank1
-                                       //  └───┴───┴───┴───┴───┴───┴───┘
-                                       //fileA fileB fileC fileD fileE fileF fileG
+                                         //  ├───┼───┼───┼───┼───┼───┼───┤
+                                         //1 │   │   │   │   │   │   │   │ rank1
+                                         //  └───┴───┴───┴───┴───┴───┴───┘
+                                         //fileA fileB fileC fileD fileE fileF fileG
     template <>
     struct EnumTraits<File>
     {
@@ -4640,8 +4640,8 @@ namespace chess
         Color m_sideToMove;
         Square m_epSquare;
         CastlingRights m_castlingRights;
-        std::uint8_t m_rule50Counter;
-        std::uint16_t m_ply;
+        std::uint8_t m_rule50Counter;  // 五十步规则用的半回合计数器，统计自上次吃子或兵走子以来的步数。做静着则递增，遇到捕获或兵步则重置，在生成 FEN 时作为第五字段输出，判断和棋时也需要它
+        std::uint16_t m_ply;  // 当前局面自对局开始以来的半回合数。对每一步（单方行棋）递增，用于 fullMove() 推导全回合数（FEN 第六字段）以及各种与搜索深度/时间步相关的逻辑。
 
         static_assert(sizeof(Color) + sizeof(Square) + sizeof(CastlingRights) + sizeof(std::uint8_t) == 4);
 
