@@ -577,12 +577,14 @@ namespace chess
     template <typename Enum1T, typename Enum2T, typename ValueT, std::size_t Size1V = cardinality<Enum1T>(), std::size_t Size2V = cardinality<Enum2T>()>
     using EnumArray2 = EnumArray<Enum1T, EnumArray<Enum2T, ValueT, Size2V>, Size1V>;
 
+    // 不需修改
     enum struct Color : std::uint8_t
     {
         White,
         Black
     };
 
+    // 不需修改
     template <>
     struct EnumTraits<Color>
     {
@@ -640,7 +642,8 @@ namespace chess
         return fromOrdinal<Color>(ordinal(c) ^ 1);
     }
 
-    enum struct PieceType : std::uint16_t
+    // TODO: PieceType类(已修改)
+    enum struct PieceType : std::uint8_t
     {
         Lion,
         Tiger,
@@ -654,6 +657,7 @@ namespace chess
         None
     };
 
+    // TODO: EnumTraits<PieceType>类(已修改)
     template <>
     struct EnumTraits<PieceType>
     {
@@ -712,6 +716,7 @@ namespace chess
         }
     };
 
+    // TODO: Piece类(已修改)
     struct Piece
     {
         [[nodiscard]] static constexpr Piece fromId(int id)
@@ -731,7 +736,7 @@ namespace chess
         }
 
         constexpr Piece(PieceType type, Color color) noexcept :
-            m_id((ordinal(type) << 1) | ordinal(color))
+            m_id((ordinal(type) << 1) | ordinal(color))  // 第0位为颜色, 第1~7位为棋子编码
         {
             assert(type != PieceType::None || color == Color::White);
         }
@@ -807,6 +812,7 @@ namespace chess
 
     static_assert(Piece::none().type() == PieceType::None);
 
+    // TODO: EnumTraits<Piece>类(已修改)
     template <>
     struct EnumTraits<Piece>
     {
@@ -873,6 +879,7 @@ namespace chess
         }
     };
 
+    // TODO: 何意味?????
     template <typename TagT>
     struct Coord
     {
@@ -994,6 +1001,7 @@ namespace chess
                                          //1 │   │   │   │   │   │   │   │ rank1
                                          //  └───┴───┴───┴───┴───┴───┴───┘
                                          //fileA fileB fileC fileD fileE fileF fileG
+    // TODO: 修改EnumTraits<File>(已完成)
     template <>
     struct EnumTraits<File>
     {
@@ -1036,6 +1044,7 @@ namespace chess
         }
     };
 
+    // TODO: 修改EnumTraits<Rank>(已完成)
     template <>
     struct EnumTraits<Rank>
     {
@@ -1080,6 +1089,7 @@ namespace chess
 
     // files east
     // ranks north
+    // TODO: 暂时不需要修改
     struct FlatSquareOffset //棋子偏移量, 用于表示棋子移动的距离和方向
     {
         std::int8_t value;
@@ -1090,7 +1100,7 @@ namespace chess
         }
 
         constexpr FlatSquareOffset(int files, int ranks) noexcept :
-            value(files + ranks * cardinality<File>()) //TODO:设计新的编码方式,这里原有乘以8改为了7，无法使用位运算<<3来获得rank
+            value(files + ranks * cardinality<File>())
         {
             assert(files + ranks * cardinality<File>() >= std::numeric_limits<std::int8_t>::min());
             assert(files + ranks * cardinality<File>() <= std::numeric_limits<std::int8_t>::max());
@@ -1108,6 +1118,7 @@ namespace chess
         }
     };
 
+    // TODO: 暂时不需要修改
     struct Offset //棋子偏移量, 用于表示棋子移动的距离和方向
     {
         std::int8_t files;
@@ -1136,6 +1147,7 @@ namespace chess
         }
     };
 
+    // TODO: 可能有雷,暂时不管
     struct SquareCoords
     {
         File file;
@@ -1155,6 +1167,9 @@ namespace chess
 
         constexpr friend SquareCoords& operator+=(SquareCoords& c, Offset offset)
         {
+            // TODO: 直接加是不是有问题?
+            // constexpr, 无法运行时assert, 可能埋雷, 暂时不管
+            // SquareCoords类似乎不在意行号/列号超限, 只记录坐标数量
             c.file += offset.files;
             c.rank += offset.ranks;
             return c;
@@ -1162,6 +1177,8 @@ namespace chess
 
         [[nodiscard]] constexpr friend SquareCoords operator+(const SquareCoords& c, Offset offset)
         {
+            // TODO: 直接加是不是有问题?
+            // constexpr, 无法运行时assert, 可能埋雷, 暂时不管
             SquareCoords cpy(c);
             cpy.file += offset.files;
             cpy.rank += offset.ranks;
@@ -1174,14 +1191,22 @@ namespace chess
         }
     };
 
+    // TODO: 修改底层的Square编码(已完成)
+    /**
+     * 修改后: 使用uint8_t编码棋盘格,
+     * 高4位为行号(范围0b0000~0b1000),
+     * 低4位为列号(范围0b0000~0b0110)
+     * 右移4位得到行号
+     * & 0b1111得到列号
+     */
     struct Square
     {
     private:
-        static constexpr std::int8_t m_noneId = cardinality<Rank>() * cardinality<File>();
+        static constexpr std::uint8_t fileMask = 0b1111;
+        static constexpr std::uint8_t rankMask = 0b11110000; //rank最大为9，因此需要4位掩码来表示
+        static constexpr std::uint8_t rankShift = 4;
 
-        static constexpr std::uint8_t fileMask = 0b111;
-        static constexpr std::uint8_t rankMask = 0b1111000; //rank最大为9，因此需要4位掩码来表示
-        static constexpr std::uint8_t rankShift = 3;
+        static constexpr std::uint8_t m_noneId = cardinality<Rank>() << rankShift | cardinality<File>();  // cardinality<Rank>和cardinality<File>已修改
 
     public:
         [[nodiscard]] static constexpr Square none()
@@ -1200,8 +1225,9 @@ namespace chess
             assert(isOk() || m_id == m_noneId);
         }
 
+        // TODO: ordinal方法可能需要修改
         constexpr Square(File file, Rank rank) noexcept :
-            m_id(ordinal(file) + ordinal(rank) * cardinality<File>())
+            m_id(ordinal(rank) << rankShift | ordinal(file))
         {
             assert(isOk());
         }
@@ -1241,15 +1267,32 @@ namespace chess
             return !(lhs == rhs);
         }
 
+        // TODO: 自增和自减方法需要重写(已完成)
         constexpr friend Square& operator++(Square& sq)
         {
-            ++sq.m_id;
+            int rank = sq.m_id >> rankShift, file = sq.m_id & fileMask;
+            if (file == 6) {
+                file = 0;
+                rank++;
+                sq.m_id = rank << rankShift | file;
+            }
+            else {
+                ++sq.m_id;
+            }
             return sq;
+
         }
 
         constexpr friend Square& operator--(Square& sq)
         {
-            --sq.m_id;
+            int rank = sq.m_id >> rankShift, file = sq.m_id & fileMask;
+            if (file == 0) {
+                file = 6;
+                rank--;
+                sq.m_id = rank << rankShift | file;
+            } else {
+                --sq.m_id;
+            }
             return sq;
         }
 
@@ -1263,7 +1306,12 @@ namespace chess
         constexpr friend Square& operator+=(Square& sq, FlatSquareOffset offset)
         {
             assert(sq.m_id + offset.value >= 0 && sq.m_id + offset.value < Square::m_noneId);
-            sq.m_id += offset.value;
+            // sq.m_id += offset.value;
+            int rank = sq.m_id >> rankShift, file = sq.m_id & fileMask;
+            int temp = file + offset.value;
+            file = temp % 7;
+            rank += temp / 7;
+            sq.m_id = rank << rankShift | file;
             return sq;
         }
 
@@ -1289,13 +1337,13 @@ namespace chess
         [[nodiscard]] constexpr File file() const
         {
             assert(isOk());
-            return File(static_cast<unsigned>(m_id) & fileMask);
+            return File(m_id & fileMask);
         }
 
         [[nodiscard]] constexpr Rank rank() const
         {
             assert(isOk());
-            return Rank(static_cast<unsigned>(m_id) >> rankShift);
+            return Rank(m_id >> rankShift);
         }
 
         [[nodiscard]] constexpr SquareCoords coords() const
@@ -1303,31 +1351,33 @@ namespace chess
             return { file(), rank() };
         }
 
-        [[nodiscard]] constexpr Color color() const
-        {
-            assert(isOk());
-            return !fromOrdinal<Color>((ordinal(rank()) + ordinal(file())) & 1);
-        }
+        // TODO: 删除黑白格定义
+        // [[nodiscard]] constexpr Color color() const
+        // {
+        //     assert(isOk());
+        //     return !fromOrdinal<Color>((ordinal(rank()) + ordinal(file())) & 1);
+        // }
 
-        constexpr void flipVertically()
-        {
-            m_id ^= rankMask;
-        }
-
-        constexpr void flipHorizontally()
-        {
-            m_id ^= fileMask;
-        }
-
-        constexpr Square flippedVertically() const
-        {
-            return Square(m_id ^ rankMask);
-        }
-
-        constexpr Square flippedHorizontally() const
-        {
-            return Square(m_id ^ fileMask);
-        }
+        // TODO: 是否需要保留翻转棋盘格的方法?
+        // constexpr void flipVertically()
+        // {
+        //     m_id ^= rankMask;
+        // }
+        //
+        // constexpr void flipHorizontally()
+        // {
+        //     m_id ^= fileMask;
+        // }
+        //
+        // constexpr Square flippedVertically() const
+        // {
+        //     return Square(m_id ^ rankMask);
+        // }
+        //
+        // constexpr Square flippedHorizontally() const
+        // {
+        //     return Square(m_id ^ fileMask);
+        // }
 
         [[nodiscard]] constexpr bool isOk() const
         {
@@ -1335,7 +1385,7 @@ namespace chess
         }
 
     private:
-        std::int8_t m_id;
+        std::uint8_t m_id;  // TODO: 由于高位要用, 故改为使用无符号整数
     };
 
     constexpr Square a1(fileA, rank1);
@@ -1408,14 +1458,16 @@ namespace chess
     constexpr Square g8(fileG, rank8);
     constexpr Square g9(fileG, rank9);
 
-    static_assert(e1.color() == Color::Black);
-    static_assert(e9.color() == Color::White);
+    // TODO: 需要删减关于棋盘黑白格的代码
+    // static_assert(e1.color() == Color::Black);
+    // static_assert(e9.color() == Color::White);
 
     static_assert(e1.file() == fileE);
     static_assert(e1.rank() == rank1);
 
-    static_assert(e1.flippedHorizontally() == d1);
-    static_assert(e1.flippedVertically() == e9); //TODO: wtf?
+    // TODO: 未知是否需要保留flip方法家族
+    // static_assert(e1.flippedHorizontally() == d1);
+    // static_assert(e1.flippedVertically() == e9); //TODO: wtf?
     /*TODO:设计新编码方式，
      *表达式必须含有常量值C/C++(28)
      *nnue_training_data_formats.h(1418, 19): 
@@ -1423,6 +1475,7 @@ namespace chess
      *(已声明 所在行数:24，所属文件:"D:\mingw64\x86_64-w64-mingw32\include\assert.h")
      */
 
+    // TODO: EnumTraits类是否需要修改索引方式?
     template <>
     struct EnumTraits<Square>
     {
@@ -6937,7 +6990,7 @@ namespace binpack
         // 走法是否合法
         [[nodiscard]] bool isValid() const
         {
-            // TODO: 改库
+            // TODO: 改库, 修改走子规则定义
             return pos.isMoveLegal(move);
         }
 
