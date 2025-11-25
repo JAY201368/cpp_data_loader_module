@@ -774,7 +774,7 @@ namespace chess
         {
         }
 
-        std::uint16_t m_id; // lowest bit is a color, 1-8 bits are a piece type, with the rest unused
+        std::uint8_t m_id; // lowest bit is a color, 1-8 bits are a piece type, with the rest unused(11.25修改)
     };
 
     [[nodiscard]] constexpr Piece operator|(PieceType type, Color color) noexcept
@@ -1571,19 +1571,20 @@ namespace chess
 
     // castling is encoded as a king capturing rook
     // ep is encoded as a normal pawn capture (move.to is empty on the board)
-    struct Move
+    struct Move  // TODO: Move类已修改
     {
         Square from;
         Square to;
         MoveType type = MoveType::Normal;
-        Piece promotedPiece = Piece::none();
+        Piece padding = Piece::none();  // 占位字段
+        // Piece promotedPiece = Piece::none();  // TODO: 删除升变
 
         [[nodiscard]] constexpr friend bool operator==(const Move& lhs, const Move& rhs) noexcept
         {
             return lhs.from == rhs.from
                 && lhs.to == rhs.to
-                && lhs.type == rhs.type
-                && lhs.promotedPiece == rhs.promotedPiece;
+                && lhs.type == rhs.type;
+                // && lhs.promotedPiece == rhs.promotedPiece;
         }
 
         [[nodiscard]] constexpr friend bool operator!=(const Move& lhs, const Move& rhs) noexcept
@@ -1593,43 +1594,50 @@ namespace chess
 
         [[nodiscard]] constexpr CompressedMove compress() const noexcept;
 
+        // 以下几个都是获得特定move的方法
+
         [[nodiscard]] constexpr static Move null()
         {
             return Move{ Square::none(), Square::none() };
         }
 
-        [[nodiscard]] constexpr static Move castle(CastleType ct, Color c);
+        // [[nodiscard]] constexpr static Move castle(CastleType ct, Color c);
 
         [[nodiscard]] constexpr static Move normal(Square from, Square to)
         {
-            return Move{ from, to, MoveType::Normal, Piece::none() };
+            return Move{
+                from,
+                to,
+                MoveType::Normal,
+                Piece::none()
+            };
         }
 
-        [[nodiscard]] constexpr static Move enPassant(Square from, Square to)
-        {
-            return Move{ from, to, MoveType::EnPassant, Piece::none() };
-        }
+        // [[nodiscard]] constexpr static Move enPassant(Square from, Square to)
+        // {
+        //     return Move{ from, to, MoveType::EnPassant, Piece::none() };
+        // }
 
-        [[nodiscard]] constexpr static Move promotion(Square from, Square to, Piece piece)
-        {
-            return Move{ from, to, MoveType::Promotion, piece };
-        }
+        // [[nodiscard]] constexpr static Move promotion(Square from, Square to, Piece piece)
+        // {
+        //     return Move{ from, to, MoveType::Promotion, piece };
+        // }
     };
 
-    namespace detail::castle
-    {
-        constexpr EnumArray2<CastleType, Color, Move> moves = { {
-            {{ { e1, h1, MoveType::Castle }, { e8, h8, MoveType::Castle } }},
-            {{ { e1, a1, MoveType::Castle }, { e8, a8, MoveType::Castle } }}
-        } };
-    }
+    // namespace detail::castle
+    // {
+    //     constexpr EnumArray2<CastleType, Color, Move> moves = { {
+    //         {{ { e1, h1, MoveType::Castle }, { e8, h8, MoveType::Castle } }},
+    //         {{ { e1, a1, MoveType::Castle }, { e8, a8, MoveType::Castle } }}
+    //     } };
+    // }
+    //
+    // [[nodiscard]] constexpr Move Move::castle(CastleType ct, Color c)
+    // {
+    //     return detail::castle::moves[ct][c];
+    // }
 
-    [[nodiscard]] constexpr Move Move::castle(CastleType ct, Color c)
-    {
-        return detail::castle::moves[ct][c];
-    }
-
-    static_assert(sizeof(Move) == 4);
+    static_assert(sizeof(Move) == 4);  // TODO: 添加填充字段, 保持move大小为4字节
 
     struct CompressedMove
     {
@@ -5153,8 +5161,8 @@ namespace chess
     [[nodiscard]] inline bool Position::isPseudoLegalMoveLegal(Move move) const
     {
         return
-            (move.type == MoveType::Castle)
-            || !isOwnKingAttackedAfterMove(move);
+            // (move.type == MoveType::Castle) ||
+                !isOwnKingAttackedAfterMove(move);
     }
 
     [[nodiscard]] inline bool Position::isMovePseudoLegal(Move move) const
@@ -5169,10 +5177,10 @@ namespace chess
             return false;
         }
 
-        if (move.type != MoveType::Promotion && move.promotedPiece != Piece::none())
-        {
-            return false;
-        }
+        // if (move.type != MoveType::Promotion && move.promotedPiece != Piece::none())
+        // {
+        //     return false;
+        // }
 
         const Piece movedPiece = pieceAt(move.from);
         if (movedPiece == Piece::none())
@@ -5187,42 +5195,18 @@ namespace chess
 
         const Bitboard occupied = piecesBB();
         const Bitboard ourPieces = piecesBB(m_sideToMove);
-        const bool isNormal = move.type == MoveType::Normal;
+        // const bool isNormal = move.type == MoveType::Normal;
+        const bool isNormal = true;  // 恒为normal
 
         switch (movedPiece.type())
         {
-        case PieceType::Pawn:
-        {
-            bool isValid = false;
-            // TODO: use iterators so we don't loop over all moves
-            //       when we can avoid it.
-            movegen::forEachPseudoLegalPawnMove(*this, move.from, [&isValid, &move](const Move& genMove) {
-                if (move == genMove)
-                {
-                    isValid = true;
-                }
-                });
-            return isValid;
-        }
-
-        case PieceType::Bishop:
-            return isNormal && (bb::attacks<PieceType::Bishop>(move.from, occupied) & ~ourPieces).isSet(move.to);
-
-        case PieceType::Knight:
-            return isNormal && (bb::pseudoAttacks<PieceType::Knight>(move.from) & ~ourPieces).isSet(move.to);
-
-        case PieceType::Rook:
-            return isNormal && (bb::attacks<PieceType::Rook>(move.from, occupied) & ~ourPieces).isSet(move.to);
-
-        case PieceType::Queen:
-            return isNormal && (bb::attacks<PieceType::Queen>(move.from, occupied) & ~ourPieces).isSet(move.to);
-
-        case PieceType::King:
-        {
-            if (move.type == MoveType::Castle)
+            // TODO: 修改走子限制
+            case PieceType::Pawn:
             {
                 bool isValid = false;
-                movegen::forEachCastlingMove(*this, [&isValid, &move](const Move& genMove) {
+                // TODO: use iterators so we don't loop over all moves
+                //       when we can avoid it.
+                movegen::forEachPseudoLegalPawnMove(*this, move.from, [&isValid, &move](const Move& genMove) {
                     if (move == genMove)
                     {
                         isValid = true;
@@ -5230,11 +5214,37 @@ namespace chess
                     });
                 return isValid;
             }
-            else
+
+            case PieceType::Bishop:
+                return isNormal && (bb::attacks<PieceType::Bishop>(move.from, occupied) & ~ourPieces).isSet(move.to);
+
+            case PieceType::Knight:
+                return isNormal && (bb::pseudoAttacks<PieceType::Knight>(move.from) & ~ourPieces).isSet(move.to);
+
+            case PieceType::Rook:
+                return isNormal && (bb::attacks<PieceType::Rook>(move.from, occupied) & ~ourPieces).isSet(move.to);
+
+            case PieceType::Queen:
+                return isNormal && (bb::attacks<PieceType::Queen>(move.from, occupied) & ~ourPieces).isSet(move.to);
+
+            case PieceType::King:
             {
-                return isNormal && (bb::pseudoAttacks<PieceType::King>(move.from) & ~ourPieces).isSet(move.to);
+                if (move.type == MoveType::Castle)
+                {
+                    bool isValid = false;
+                    movegen::forEachCastlingMove(*this, [&isValid, &move](const Move& genMove) {
+                        if (move == genMove)
+                        {
+                            isValid = true;
+                        }
+                        });
+                    return isValid;
+                }
+                else
+                {
+                    return isNormal && (bb::pseudoAttacks<PieceType::King>(move.from) & ~ourPieces).isSet(move.to);
+                }
             }
-        }
 
         default:
             return false;
@@ -5829,12 +5839,12 @@ namespace chess
 
     [[nodiscard]] bool Board::isOwnKingAttackedAfterMove(Move move) const
     {
-        if (move.type == MoveType::Castle)
-        {
-            // Pseudo legal castling moves are already legal.
-            // This is ensured by the move generator.
-            return false;
-        }
+        // if (move.type == MoveType::Castle)
+        // {
+        //     // Pseudo legal castling moves are already legal.
+        //     // This is ensured by the move generator.
+        //     return false;
+        // }
 
         const Piece movedPiece = pieceAt(move.from);
 
@@ -6934,7 +6944,7 @@ namespace binpack
         // 是否吃子
         [[nodiscard]] bool isCapturingMove() const
         {
-            // TODO: 可能需要改库
+            // TODO: 可能需要改Move库(已修改)
             return pos.pieceAt(move.to) != chess::Piece::none() &&
                    pos.pieceAt(move.to).color() != pos.pieceAt(move.from).color(); // Exclude castling
         }
@@ -6942,6 +6952,7 @@ namespace binpack
         // The win rate model returns the probability (per mille) of winning given an eval
         // and a game-ply. The model fits rather accurately the LTC fishtest statistics.
         // 胜率预测
+        // TODO: 胜率预测模型中有magic number, 需要修改
         std::tuple<double, double, double> win_rate_model() const {
 
            // The model captures only up to 240 plies, so limit input (and rescale)
@@ -6980,9 +6991,10 @@ namespace binpack
            return d;
         }
 
+        // 判断是否将军
         [[nodiscard]] bool isInCheck() const
         {
-            // TODO: 修改库
+            // TODO: 修改将军的定义, 将王位改为兽穴
             return pos.isCheck();
         }
     };
