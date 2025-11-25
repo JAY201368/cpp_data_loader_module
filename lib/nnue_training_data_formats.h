@@ -1545,8 +1545,10 @@ namespace chess
 
     enum struct MoveType : std::uint8_t
     {
-        Normal
-        // 斗兽棋只需要普通走子
+        Normal,
+        Swim,
+        Leap,
+        Trapped
         // Promotion,
         // Castle,
         // EnPassant
@@ -1558,11 +1560,14 @@ namespace chess
         using IdType = int;
         using EnumType = MoveType;
 
-        static constexpr int cardinality = 1;
+        static constexpr int cardinality = 4;
         static constexpr bool isNaturalIndex = true;
 
         static constexpr std::array<EnumType, cardinality> values{
-            MoveType::Normal
+            MoveType::Normal,
+            MoveType::Swim,
+            MoveType::Leap,
+            MoveType::Trapped,
             // MoveType::Promotion,
             // MoveType::Castle,
             // MoveType::EnPassant
@@ -1666,6 +1671,36 @@ namespace chess
             };
         }
 
+        [[nodiscard]] constexpr static Move swim(Square from, Square to)
+        {
+            return Move{
+                from,
+                to,
+                MoveType::Swim,
+                Piece::none()
+            };
+        }
+
+        [[nodiscard]] constexpr static Move leap(Square from, Square to)
+        {
+            return Move{
+                from,
+                to,
+                MoveType::Leap,
+                Piece::none()
+            };
+        }
+
+        [[nodiscard]] constexpr static Move trapped(Square from, Square to)
+        {
+            return Move{
+                from,
+                to,
+                MoveType::Trapped,
+                Piece::none()
+            };
+        }
+
         // [[nodiscard]] constexpr static Move enPassant(Square from, Square to)
         // {
         //     return Move{ from, to, MoveType::EnPassant, Piece::none() };
@@ -1690,19 +1725,17 @@ namespace chess
     //     return detail::castle::moves[ct][c];
     // }
 
-    static_assert(sizeof(Move) == 4);  // TODO: 添加填充字段, 保持move大小为4字节
+    static_assert(sizeof(Move) == 4);  // move大小是4字节吗?
 
     struct CompressedMove
     {
     private:
         // from most significant bits
         // 2 bits for move type
-        // 6 bits for from square
-        // 6 bits for to square
-        // 2 bits for promoted piece type
-        //    0 if not a promotion
+        // 6 bits for from square (TODO: 7 bits or 8 bits)
+        // 6 bits for to square (TODO: 7 bits or 8 bits)
         static constexpr std::uint16_t squareMask = 0b111111u;
-        static constexpr std::uint16_t promotedPieceTypeMask = 0b11u;
+        //static constexpr std::uint16_t promotedPieceTypeMask = 0b11u;  //升变掩码（不需要）
         static constexpr std::uint16_t moveTypeMask = 0b11u;
 
     public:
@@ -1733,7 +1766,7 @@ namespace chess
                     | (static_cast<std::uint16_t>(ordinal(move.from)) << (16 - 2 - 6))
                     | (static_cast<std::uint16_t>(ordinal(move.to)) << (16 - 2 - 6 - 6));
 
-                if (move.type == MoveType::Promotion)
+                /*if (move.type == MoveType::Promotion)
                 {
                     assert(move.promotedPiece != Piece::none());
 
@@ -1742,7 +1775,7 @@ namespace chess
                 else
                 {
                     assert(move.promotedPiece == Piece::none());
-                }
+                }*/
             }
         }
 
@@ -1772,24 +1805,6 @@ namespace chess
             return fromOrdinal<Square>((m_packed >> (16 - 2 - 6 - 6)) & squareMask);
         }
 
-        [[nodiscard]] constexpr Piece promotedPiece() const
-        {
-            if (type() == MoveType::Promotion)
-            {
-                const Color color =
-                    (to().rank() == rank1)
-                    ? Color::Black
-                    : Color::White;
-
-                const PieceType pt = fromOrdinal<PieceType>((m_packed & promotedPieceTypeMask) + ordinal(PieceType::Knight));
-                return color | pt;
-            }
-            else
-            {
-                return Piece::none();
-            }
-        }
-
         [[nodiscard]] constexpr Move decompress() const noexcept
         {
             if (m_packed == 0)
@@ -1801,32 +1816,16 @@ namespace chess
                 const MoveType type = fromOrdinal<MoveType>(m_packed >> (16 - 2));
                 const Square from = fromOrdinal<Square>((m_packed >> (16 - 2 - 6)) & squareMask);
                 const Square to = fromOrdinal<Square>((m_packed >> (16 - 2 - 6 - 6)) & squareMask);
-                const Piece promotedPiece = [&]() {
-                    if (type == MoveType::Promotion)
-                    {
-                        const Color color =
-                            (to.rank() == rank1)
-                            ? Color::Black
-                            : Color::White;
 
-                        const PieceType pt = fromOrdinal<PieceType>((m_packed & promotedPieceTypeMask) + ordinal(PieceType::Knight));
-                        return color | pt;
-                    }
-                    else
-                    {
-                        return Piece::none();
-                    }
-                }();
-
-                return Move{ from, to, type, promotedPiece };
+                return Move{ from, to, type };
             }
         }
 
     private:
-        std::uint16_t m_packed;
+        std::uint32_t m_packed;
     };
 
-    static_assert(sizeof(CompressedMove) == 2);
+    static_assert(sizeof(CompressedMove) == 4);
 
     [[nodiscard]] constexpr CompressedMove Move::compress() const noexcept
     {
@@ -1843,6 +1842,7 @@ namespace chess
     static_assert(e4 + Offset{ -1, 0 } == d4);
     static_assert(e4 + Offset{ -2, 0 } == c4);
 
+    /*
     enum struct CastlingRights : std::uint8_t
     {
         None = 0x0,
@@ -1913,6 +1913,7 @@ namespace chess
             return static_cast<EnumType>(id);
         }
     };
+    */
 
     struct CompressedReverseMove;
 
@@ -1921,22 +1922,19 @@ namespace chess
         Move move;
         Piece capturedPiece;
         Square oldEpSquare;
-        CastlingRights oldCastlingRights;
 
         // We need a well defined case for the starting position.
         constexpr ReverseMove() :
             move(Move::null()),
             capturedPiece(Piece::none()),
-            oldEpSquare(Square::none()),
-            oldCastlingRights(CastlingRights::All)
+            oldEpSquare(Square::none())
         {
         }
 
-        constexpr ReverseMove(const Move& move_, Piece capturedPiece_, Square oldEpSquare_, CastlingRights oldCastlingRights_) :
+        constexpr ReverseMove(const Move& move_, Piece capturedPiece_, Square oldEpSquare_) :
             move(move_),
             capturedPiece(capturedPiece_),
-            oldEpSquare(oldEpSquare_),
-            oldCastlingRights(oldCastlingRights_)
+            oldEpSquare(oldEpSquare_)
         {
         }
 
@@ -1952,7 +1950,7 @@ namespace chess
             return lhs.move == rhs.move
                 && lhs.capturedPiece == rhs.capturedPiece
                 && lhs.oldEpSquare == rhs.oldEpSquare
-                && lhs.oldCastlingRights == rhs.oldCastlingRights;
+            ;
         }
 
         [[nodiscard]] constexpr friend bool operator!=(const ReverseMove& lhs, const ReverseMove& rhs) noexcept
@@ -1961,7 +1959,7 @@ namespace chess
         }
     };
 
-    static_assert(sizeof(ReverseMove) == 7);
+    static_assert(sizeof(ReverseMove) == 6);
 
     struct CompressedReverseMove
     {
