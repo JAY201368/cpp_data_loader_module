@@ -1202,9 +1202,10 @@ namespace chess
     struct Square
     {
     private:
-        static constexpr std::uint8_t fileMask = 0b1111;
-        static constexpr std::uint8_t rankMask = 0b11110000; //rank最大为9，因此需要4位掩码来表示
-        static constexpr std::uint8_t rankShift = 4;
+        static constexpr std::uint8_t fileMask = 0b111;
+        static constexpr std::uint8_t rankMask = 0b1111000; //rank最大为9，因此需要4位掩码来表示
+        static constexpr std::uint8_t rankShift = 3;
+        // 3位file 和 4位rank => 7位Square
 
         static constexpr std::uint8_t m_noneId = cardinality<Rank>() << rankShift | cardinality<File>();  // cardinality<Rank>和cardinality<File>已修改
 
@@ -1732,9 +1733,9 @@ namespace chess
     private:
         // from most significant bits
         // 2 bits for move type
-        // 6 bits for from square (TODO: 7 bits or 8 bits)
-        // 6 bits for to square (TODO: 7 bits or 8 bits)
-        static constexpr std::uint16_t squareMask = 0b111111u;
+        // 7 bits for from square 
+        // 7 bits for to square 
+        static constexpr std::uint16_t squareMask = 0b1111111u;
         //static constexpr std::uint16_t promotedPieceTypeMask = 0b11u;  //升变掩码（不需要）
         static constexpr std::uint16_t moveTypeMask = 0b11u;
 
@@ -1763,8 +1764,8 @@ namespace chess
 
                 m_packed =
                     (static_cast<std::uint16_t>(ordinal(move.type)) << (16 - 2))
-                    | (static_cast<std::uint16_t>(ordinal(move.from)) << (16 - 2 - 6))
-                    | (static_cast<std::uint16_t>(ordinal(move.to)) << (16 - 2 - 6 - 6));
+                    | (static_cast<std::uint16_t>(ordinal(move.from)) << (16 - 2 - 7))
+                    | (static_cast<std::uint16_t>(ordinal(move.to)) << (16 - 2 - 7 - 7));
 
                 /*if (move.type == MoveType::Promotion)
                 {
@@ -1797,12 +1798,12 @@ namespace chess
 
         [[nodiscard]] constexpr Square from() const
         {
-            return fromOrdinal<Square>((m_packed >> (16 - 2 - 6)) & squareMask);
+            return fromOrdinal<Square>((m_packed >> (16 - 2 - 7)) & squareMask);
         }
 
         [[nodiscard]] constexpr Square to() const
         {
-            return fromOrdinal<Square>((m_packed >> (16 - 2 - 6 - 6)) & squareMask);
+            return fromOrdinal<Square>((m_packed >> (16 - 2 - 7 - 7)) & squareMask);
         }
 
         [[nodiscard]] constexpr Move decompress() const noexcept
@@ -1814,18 +1815,18 @@ namespace chess
             else
             {
                 const MoveType type = fromOrdinal<MoveType>(m_packed >> (16 - 2));
-                const Square from = fromOrdinal<Square>((m_packed >> (16 - 2 - 6)) & squareMask);
-                const Square to = fromOrdinal<Square>((m_packed >> (16 - 2 - 6 - 6)) & squareMask);
+                const Square from = fromOrdinal<Square>((m_packed >> (16 - 2 - 7)) & squareMask);
+                const Square to = fromOrdinal<Square>((m_packed >> (16 - 2 - 7 - 7)) & squareMask);
 
                 return Move{ from, to, type };
             }
         }
 
     private:
-        std::uint32_t m_packed;
+        std::uint16_t m_packed;
     };
 
-    static_assert(sizeof(CompressedMove) == 4);
+    static_assert(sizeof(CompressedMove) == 2);
 
     [[nodiscard]] constexpr CompressedMove Move::compress() const noexcept
     {
@@ -1919,9 +1920,9 @@ namespace chess
 
     struct ReverseMove
     {
-        Move move;
-        Piece capturedPiece;
-        Square oldEpSquare;
+        Move move; // 4 bytes
+        Piece capturedPiece; // 1 bytes
+        Square oldEpSquare; // 1 bytes
 
         // We need a well defined case for the starting position.
         constexpr ReverseMove() :
@@ -1967,7 +1968,7 @@ namespace chess
         // we use 7 bits because it can be Square::none()
         static constexpr std::uint32_t squareMask = 0b1111111u;
         static constexpr std::uint32_t pieceMask = 0b1111u;
-        static constexpr std::uint32_t castlingRightsMask = 0b1111;
+        //static constexpr std::uint32_t castlingRightsMask = 0b1111;
     public:
 
         constexpr CompressedReverseMove() noexcept :
@@ -1980,11 +1981,12 @@ namespace chess
             m_move(rm.move.compress()),
             m_oldState{ static_cast<uint16_t>(
                 ((ordinal(rm.capturedPiece) & pieceMask) << 11)
-                | ((ordinal(rm.oldCastlingRights) & castlingRightsMask) << 7)
+                //| ((ordinal(rm.oldCastlingRights) & castlingRightsMask) << 7)
+                //假定原王车易位处的权限记录均为0（未使用）
                 | (ordinal(rm.oldEpSquare) & squareMask)
                 )
             }
-        {
+        { 
         }
 
         [[nodiscard]] constexpr Move move() const
@@ -2002,11 +2004,6 @@ namespace chess
             return fromOrdinal<Piece>(m_oldState >> 11);
         }
 
-        [[nodiscard]] constexpr CastlingRights oldCastlingRights() const
-        {
-            return fromOrdinal<CastlingRights>((m_oldState >> 7) & castlingRightsMask);
-        }
-
         [[nodiscard]] constexpr Square oldEpSquare() const
         {
             return fromOrdinal<Square>(m_oldState & squareMask);
@@ -2015,17 +2012,17 @@ namespace chess
         [[nodiscard]] constexpr ReverseMove decompress() const noexcept
         {
             const Piece capturedPiece = fromOrdinal<Piece>(m_oldState >> 11);
-            const CastlingRights castlingRights = fromOrdinal<CastlingRights>((m_oldState >> 7) & castlingRightsMask);
+            //const CastlingRights castlingRights = fromOrdinal<CastlingRights>((m_oldState >> 7) & castlingRightsMask);
             // We could pack the ep square more, but don't have to, because
             // can't save another byte anyway.
             const Square epSquare = fromOrdinal<Square>(m_oldState & squareMask);
 
-            return ReverseMove(m_move.decompress(), capturedPiece, epSquare, castlingRights);
+            return ReverseMove(m_move.decompress(), capturedPiece, epSquare);
         }
 
     private:
-        CompressedMove m_move;
-        std::uint16_t m_oldState;
+        CompressedMove m_move; // 2bytes
+        std::uint16_t m_oldState; // 2bytes
     };
 
     static_assert(sizeof(CompressedReverseMove) == 4);
@@ -2042,10 +2039,10 @@ namespace chess
         static constexpr std::size_t numBits = 27;
 
     private:
-        static constexpr std::uint32_t squareMask = 0b111111u;
-        static constexpr std::uint32_t pieceMask = 0b1111u;
-        static constexpr std::uint32_t pieceTypeMask = 0b111u;
-        static constexpr std::uint32_t castlingRightsMask = 0b1111;
+        static constexpr std::uint32_t squareMask = 0b1111111u;
+        static constexpr std::uint32_t pieceMask = 0b1111u; // 2 colors * 8 types = 16
+        static constexpr std::uint32_t pieceTypeMask = 0b1111u; // 8 types + 1 none = 9
+        //static constexpr std::uint32_t castlingRightsMask = 0b1111;
         static constexpr std::uint32_t fileMask = 0b111;
 
     public:
@@ -2057,20 +2054,27 @@ namespace chess
 
         constexpr PackedReverseMove(const ReverseMove& reverseMove) :
             m_packed(
+                // 0u
+                // // The only move when square is none() is null move and
+                // // then both squares are none(). No other move is like that
+                // // so we don't lose any information by storing only
+                // // the 6 bits of each square.
+                // | ((ordinal(reverseMove.move.from) & squareMask) << 21)
+                // | ((ordinal(reverseMove.move.to) & squareMask) << 15)
+                // // Other masks are just for code clarity, they should
+                // // never change the values.
+                // | ((ordinal(reverseMove.capturedPiece) & pieceMask) << 11)
+                // | ((ordinal(reverseMove.oldCastlingRights) & castlingRightsMask) << 7)
+                // | ((ordinal(reverseMove.move.promotedPiece.type()) & pieceTypeMask) << 4)
+                // | (((reverseMove.oldEpSquare != Square::none()) & 1) << 3)
+                // // We probably could omit the squareMask here but for clarity it's left.
+                // | (ordinal(Square(ordinal(reverseMove.oldEpSquare) & squareMask).file()) & fileMask)
+
                 0u
-                // The only move when square is none() is null move and
-                // then both squares are none(). No other move is like that
-                // so we don't lose any information by storing only
-                // the 6 bits of each square.
-                | ((ordinal(reverseMove.move.from) & squareMask) << 21)
-                | ((ordinal(reverseMove.move.to) & squareMask) << 15)
-                // Other masks are just for code clarity, they should
-                // never change the values.
-                | ((ordinal(reverseMove.capturedPiece) & pieceMask) << 11)
-                | ((ordinal(reverseMove.oldCastlingRights) & castlingRightsMask) << 7)
-                | ((ordinal(reverseMove.move.promotedPiece.type()) & pieceTypeMask) << 4)
+                | ((ordinal(reverseMove.move.from) & squareMask) << 15)
+                | ((ordinal(reverseMove.move.to) & squareMask) << 8)
+                | ((ordinal(reverseMove.capturedPiece) & pieceMask) << 4)
                 | (((reverseMove.oldEpSquare != Square::none()) & 1) << 3)
-                // We probably could omit the squareMask here but for clarity it's left.
                 | (ordinal(Square(ordinal(reverseMove.oldEpSquare) & squareMask).file()) & fileMask)
             )
         {
@@ -2085,60 +2089,54 @@ namespace chess
         {
             ReverseMove rmove{};
 
-            rmove.move.from = fromOrdinal<Square>((m_packed >> 21) & squareMask);
-            rmove.move.to = fromOrdinal<Square>((m_packed >> 15) & squareMask);
-            rmove.capturedPiece = fromOrdinal<Piece>((m_packed >> 11) & pieceMask);
-            rmove.oldCastlingRights = fromOrdinal<CastlingRights>((m_packed >> 7) & castlingRightsMask);
-            const PieceType promotedPieceType = fromOrdinal<PieceType>((m_packed >> 4) & pieceTypeMask);
-            if (promotedPieceType != PieceType::None)
-            {
-                rmove.move.promotedPiece = Piece(promotedPieceType, sideThatMoved);
-                rmove.move.type = MoveType::Promotion;
-            }
+            rmove.move.from = fromOrdinal<Square>((m_packed >> 15) & squareMask);
+            rmove.move.to = fromOrdinal<Square>((m_packed >> 8) & squareMask);
+            rmove.capturedPiece = fromOrdinal<Piece>((m_packed >> 4) & pieceMask);
+            // rmove.oldCastlingRights = fromOrdinal<CastlingRights>((m_packed >> 7) & castlingRightsMask);
             const bool hasEpSquare = static_cast<bool>((m_packed >> 3) & 1);
-            if (hasEpSquare)
-            {
-                // ep square is always where the opponent moved
-                const Rank rank =
-                    sideThatMoved == Color::White
-                    ? rank6
-                    : rank3;
-                const File file = fromOrdinal<File>(m_packed & fileMask);
-                rmove.oldEpSquare = Square(file, rank);
-                if (rmove.oldEpSquare == rmove.move.to)
-                {
-                    rmove.move.type = MoveType::EnPassant;
-                }
-            }
-            else
+            // if (hasEpSquare)
+            // {
+            //     // ep square is always where the opponent moved
+            //     const Rank rank =
+            //         sideThatMoved == Color::White
+            //         ? rank6
+            //         : rank3;
+            //     const File file = fromOrdinal<File>(m_packed & fileMask);
+            //     rmove.oldEpSquare = Square(file, rank);
+            //     if (rmove.oldEpSquare == rmove.move.to)
+            //     {
+            //         rmove.move.type = MoveType::EnPassant;
+            //     }
+            // }
+            // else
             {
                 rmove.oldEpSquare = Square::none();
             }
 
-            if (rmove.move.type == MoveType::Normal && rmove.oldCastlingRights != CastlingRights::None)
-            {
-                // If castling was possible then we know it was the king that moved from e1/e8.
-                if (rmove.move.from == e1)
-                {
-                    if (rmove.move.to == h1 || rmove.move.to == a1)
-                    {
-                        rmove.move.type = MoveType::Castle;
-                    }
-                }
-                else if (rmove.move.from == e8)
-                {
-                    if (rmove.move.to == h8 || rmove.move.to == a8)
-                    {
-                        rmove.move.type = MoveType::Castle;
-                    }
-                }
-            }
+            // if (rmove.move.type == MoveType::Normal && rmove.oldCastlingRights != CastlingRights::None)
+            // {
+            //     // If castling was possible then we know it was the king that moved from e1/e8.
+            //     if (rmove.move.from == e1)
+            //     {
+            //         if (rmove.move.to == h1 || rmove.move.to == a1)
+            //         {
+            //             rmove.move.type = MoveType::Castle;
+            //         }
+            //     }
+            //     else if (rmove.move.from == e8)
+            //     {
+            //         if (rmove.move.to == h8 || rmove.move.to == a8)
+            //         {
+            //             rmove.move.type = MoveType::Castle;
+            //         }
+            //     }
+            // }
 
             return rmove;
         }
 
     private:
-        // Uses only 27 lowest bits.
+        // Uses only 27 lowest bits. now 21
         // Bit meaning from highest to lowest.
         // - 6 bits from
         // - 6 bits to
@@ -2163,7 +2161,7 @@ namespace chess
             if (ordinal(lhs.type) < ordinal(rhs.type)) return true;
             if (ordinal(lhs.type) > ordinal(rhs.type)) return false;
 
-            if (ordinal(lhs.promotedPiece) < ordinal(rhs.promotedPiece)) return true;
+            //if (ordinal(lhs.promotedPiece) < ordinal(rhs.promotedPiece)) return true;
 
             return false;
         }
@@ -2179,8 +2177,8 @@ namespace chess
             if (ordinal(lhs.capturedPiece) < ordinal(rhs.capturedPiece)) return true;
             if (ordinal(lhs.capturedPiece) > ordinal(rhs.capturedPiece)) return false;
 
-            if (static_cast<unsigned>(lhs.oldCastlingRights) < static_cast<unsigned>(rhs.oldCastlingRights)) return true;
-            if (static_cast<unsigned>(lhs.oldCastlingRights) > static_cast<unsigned>(rhs.oldCastlingRights)) return false;
+            //if (static_cast<unsigned>(lhs.oldCastlingRights) < static_cast<unsigned>(rhs.oldCastlingRights)) return true;
+            //if (static_cast<unsigned>(lhs.oldCastlingRights) > static_cast<unsigned>(rhs.oldCastlingRights)) return false;
 
             if (ordinal(lhs.oldEpSquare) < ordinal(rhs.oldEpSquare)) return true;
             if (ordinal(lhs.oldEpSquare) > ordinal(rhs.oldEpSquare)) return false;
