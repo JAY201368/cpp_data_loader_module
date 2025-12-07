@@ -299,111 +299,138 @@ Your test harness generates .bin files (simplest format) with 20 positions = 800
 ```
 
 ## Detailed Explanation
-chess::Move (Runtime, 4 bytes)
-Location: lib/nnue_training_data_formats.h:1551
-Size: 4 bytes
-Purpose: Full move representation for runtime use
-Fields:
-from: Source square (0-63)
-to: Destination square (0-63)
-type: Move type (Normal, Castle, EnPassant, Promotion)
-promotedPiece: Which piece to promote to (if promotion)
-chess::CompressedMove (Serialization, 2 bytes)
-Location: lib/nnue_training_data_formats.h:1611
-Size: 2 bytes (16 bits)
-Purpose: Space-efficient move encoding for this codebase's internal formats
-Bit Layout (Big Endian):
-Bits 15-14: Move type (2 bits)
-    00 = Normal
-    01 = Promotion  
-    10 = EnPassant
-    11 = Castle
-Bits 13-8:  From square (6 bits, 0-63)
-Bits 7-2:   To square (6 bits, 0-63)
-Bits 1-0:   Promotion type (2 bits, if promotion)
-    00 = Knight
-    01 = Bishop
-    02 = Rook
-    03 = Queen
-Used In:
-PackedSfen structure (position compression)
-.binpack file format
-Position serialization/deserialization
-Conversion:
-Move::compress() → CompressedMove line 1747
-Constructor: CompressedMove(Move) line 1638
-nodchip::StockfishMove (Stockfish compatibility, 2 bytes)
-Location: lib/nnue_training_data_formats.h:6330
-Size: 2 bytes (16 bits)
-Purpose: Stockfish-compatible move encoding for .bin files
-Bit Layout (Different order!):
-Bits 15-14: Move flag (2 bits)
-    00 = Normal
-    01 = Promotion
-    10 = EnPassant
-    11 = Castle
-Bits 13-12: Promotion index (2 bits, if promotion)
-    00 = Knight
-    01 = Bishop
-    10 = Rook
-    11 = Queen
-Bits 11-6:  From square (6 bits, 0-63)
-Bits 5-0:   To square (6 bits, 0-63)
-Used In:
-PackedSfenValue.move field line 6422
-.bin file format
-Compatibility with Stockfish NNUE training data
-Conversion:
-StockfishMove::fromMove(Move) line 6332
-toMove() → Move line 6360
-Why Two Different Formats?
-CompressedMove: Used internally by this codebase for position compression
-StockfishMove: Used for compatibility with Stockfish's training data format
+
+### chess::Move (Runtime, 4 bytes)
+
+- Location: lib/nnue_training_data_formats.h:1551
+- Size: 4 bytes
+- Purpose: Full move representation for runtime use
+- Fields:
+  - from: Source square (0-63)
+  - to: Destination square (0-63)
+  - type: Move type (Normal, Castle, EnPassant, Promotion)
+  - promotedPiece: Which piece to promote to (if promotion)
+
+### chess::CompressedMove (Serialization, 2 bytes)
+
+- Location: lib/nnue_training_data_formats.h:1611
+- Size: 2 bytes (16 bits)
+- Purpose: Space-efficient move encoding for this codebase's internal formats
+- Bit Layout (Big Endian):
+  - Bits 15-14: Move type (2 bits)
+    - 00 = Normal
+    - 01 = Promotion  
+    - 10 = EnPassant
+    - 11 = Castle
+  - Bits 13-8:  From square (6 bits, 0-63)
+  - Bits 7-2:   To square (6 bits, 0-63)
+  - Bits 1-0:   Promotion type (2 bits, if promotion)
+    - 00 = Knight
+    - 01 = Bishop
+    - 02 = Rook
+    - 03 = Queen
+- Used In:
+  - PackedSfen structure (position compression)
+  - .binpack file format
+  - Position serialization/deserialization
+- Conversion:
+  - Move::compress() → CompressedMove line 1747
+  - Constructor: CompressedMove(Move) line 1638
+
+### nodchip::StockfishMove (Stockfish compatibility, 2 bytes)
+
+- Location: lib/nnue_training_data_formats.h:6330
+- Size: 2 bytes (16 bits)
+- Purpose: Stockfish-compatible move encoding for .bin files
+- Bit Layout (Different order!):
+  - Bits 15-14: Move flag (2 bits)
+    - 00 = Normal
+    - 01 = Promotion
+    - 10 = EnPassant
+    - 11 = Castle
+  - Bits 13-12: Promotion index (2 bits, if promotion)
+    - 00 = Knight
+    - 01 = Bishop
+    - 10 = Rook
+    - 11 = Queen
+  - Bits 11-6:  From square (6 bits, 0-63)
+  - Bits 5-0:   To square (6 bits, 0-63)
+- Used In:
+  - PackedSfenValue.move field line 6422
+  - .bin file format
+  - Compatibility with Stockfish NNUE training data
+- Conversion:
+  - StockfishMove::fromMove(Move) line 6332
+  - toMove() → Move line 6360
+
+## Why Two Different Formats?
+
+- CompressedMove: Used internally by this codebase for position compression
+- StockfishMove: Used for compatibility with Stockfish's training data format
+
 The bit layouts are different because they serve different purposes and maintain compatibility with different systems.
-Where They Appear in the Main Hierarchy
+
+## Where They Appear in the Main Hierarchy
+
 Here's the updated complete hierarchy with moves:
+
+```
 TrainingDataEntry (runtime)
 ├── chess::Position pos
-├── chess::Move move ◄─────────────┐ [4 bytes runtime]
-├── int16_t score                  │
-├── uint16_t ply                   │
-└── int16_t result                 │
-                                   │
-         ↓ serialize               │
-                                   │
-PackedSfenValue (40 bytes)         │
-├── PackedSfen sfen                │
+├── chess::Move move ◄───────────────┐ [4 bytes runtime]
+├── int16_t score                    │
+├── uint16_t ply                     │
+└── int16_t result                   │
+                                     │
+         ↓ serialize                 │
+                                     │
+PackedSfenValue (40 bytes)           │
+├── PackedSfen sfen                  │
 │   └── Uses chess::CompressedMove ◄─┤ [2 bytes, internal format]
-├── int16_t score                      │
-├── StockfishMove move ◄───────────────┘ [2 bytes, Stockfish format]
+├── int16_t score                    │
+├── StockfishMove move ◄─────────────┘ [2 bytes, Stockfish format]
 ├── uint16_t gamePly
 ├── int8_t game_result
 └── uint8_t padding
-Summary
+```
+
+## Summary
+
 CompressedMove is a serialization format that sits between the runtime Move (4 bytes) and disk storage:
-Runtime: chess::Move (4 bytes) - used during execution
-Serialization (internal): chess::CompressedMove (2 bytes) - used in PackedSfen/binpack
-Serialization (Stockfish): nodchip::StockfishMove (2 bytes) - used in PackedSfenValue/.bin files
+
+- Runtime: chess::Move (4 bytes) - used during execution
+- Serialization (internal): chess::CompressedMove (2 bytes) - used in PackedSfen/binpack
+- Serialization (Stockfish): nodchip::StockfishMove (2 bytes) - used in PackedSfenValue/.bin files
+
 Both compressed formats reduce 4 bytes down to 2 bytes (50% compression) by packing the move information into bit fields, but they use different bit layouts for compatibility with different systems.
 
-Can You Remove CompressedMove?
+## Can You Remove CompressedMove?
+
 Short Answer: Yes, you can remove CompressedMove if you're willing to make storage compromises, BUT it depends on which formats you want to support.
-Analysis of CompressedMove Usage
+
+### Analysis of CompressedMove Usage
+
 Where CompressedMove is Used:
-.binpack format (compressed file format) - line 7437
-Used in PackedTrainingDataEntry (32 bytes)
-Critical for the compression algorithm
-Position history/undo - lines 1898, 1945
-CompressedReverseMove stores move history for undoing moves
-Used when making/unmaking moves during position traversal
-Binpack reader/writer - Used throughout delta encoding
+- .binpack format (compressed file format) - line 7437
+- Used in PackedTrainingDataEntry (32 bytes)
+- Critical for the compression algorithm
+- Position history/undo - lines 1898, 1945
+- CompressedReverseMove stores move history for undoing moves
+- Used when making/unmaking moves during position traversal
+- Binpack reader/writer - Used throughout delta encoding
+  
 Where CompressedMove is NOT Used:
-.bin format - Uses StockfishMove instead (in PackedSfenValue)
-TrainingDataEntry - Uses full chess::Move (4 bytes)
-Feature extraction - Works with chess::Move
-Your Options
+- .bin format - Uses StockfishMove instead (in PackedSfenValue)
+- TrainingDataEntry - Uses full chess::Move (4 bytes)
+- Feature extraction - Works with chess::Move
+
+### Your Options
+
 Option 1: Keep Only .bin Format (Simple Storage)
+
 Remove CompressedMove: ✅ YES, you can remove it
+
+```
 // What you keep:
 - chess::Move (4 bytes, runtime)
 - nodchip::StockfishMove (2 bytes, for .bin files)
@@ -413,10 +440,15 @@ Remove CompressedMove: ✅ YES, you can remove it
 - .binpack format support
 - 3-5x compression
 - Position history compression
+```
+
 Storage Impact:
-1 million positions: 40 MB (.bin) vs 8-13 MB (.binpack)
-Your 20-position test file: 800 bytes (no change)
+- 1 million positions: 40 MB (.bin) vs 8-13 MB (.binpack)
+- Your 20-position test file: 800 bytes (no change)
+
 Code Changes Required:
+
+```
 // Remove these:
 - struct CompressedMove (line 1611)
 - struct CompressedReverseMove (line 1882)  
@@ -428,12 +460,15 @@ Code Changes Required:
 - struct StockfishMove (line 6330)
 - PackedSfenValue (line 6412)
 - BinSfenInputStream (for .bin files)
+```
+
 Pros:
-✅ Simpler codebase (remove ~1500 lines of compression code)
-✅ Easier to understand and maintain
-✅ Still have 10x compression vs FEN strings
-✅ Your test harness already uses this format
+- ✅ Simpler codebase (remove ~1500 lines of compression code)
+- ✅ Easier to understand and maintain
+- ✅ Still have 10x compression vs FEN strings
+- ✅ Your test harness already uses this format
+
 Cons:
-❌ Larger file sizes (3-5x bigger than .binpack)
-❌ Can't read existing .binpack training datasets
-❌ Less efficient for distributing large datasets
+- ❌ Larger file sizes (3-5x bigger than .binpack)
+- ❌ Can't read existing .binpack training datasets
+- ❌ Less efficient for distributing large datasets
