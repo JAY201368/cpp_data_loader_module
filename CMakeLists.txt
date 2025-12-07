@@ -61,6 +61,9 @@ endif()
 
 find_package(Threads REQUIRED)
 
+# Test data generator tool
+add_executable(generate_test_data generate_test_data.cpp)
+
 if(CMAKE_BUILD_TYPE STREQUAL "PGO_Generate")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_PGO_GENERATE}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS_PGO_GENERATE}")
