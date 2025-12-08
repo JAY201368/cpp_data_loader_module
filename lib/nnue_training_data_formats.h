@@ -1213,14 +1213,13 @@ namespace chess
         }
     };
 
+    // Jungle Chess: 7 files × 9 ranks = 63 squares
+    // Sequential encoding: a1=0, b1=1, c1=2, ..., g1=6, a2=7, b2=8, ..., g9=62
     struct Square
     {
     private:
         static constexpr std::int8_t m_noneId = cardinality<Rank>() * cardinality<File>();
-
-        static constexpr std::uint8_t fileMask = 0b111;
-        static constexpr std::uint8_t rankMask = 0b111000;
-        static constexpr std::uint8_t rankShift = 3;
+        static constexpr std::int8_t numFiles = cardinality<File>();  // 7
 
     public:
         [[nodiscard]] static constexpr Square none()
@@ -1240,7 +1239,7 @@ namespace chess
         }
 
         constexpr Square(File file, Rank rank) noexcept :
-            m_id(ordinal(file) + ordinal(rank) * cardinality<File>())
+            m_id(ordinal(file) + ordinal(rank) * numFiles)
         {
             assert(isOk());
         }
@@ -1309,9 +1308,9 @@ namespace chess
         [[nodiscard]] constexpr friend Square operator+(Square sq, Offset offset)
         {
             assert(sq.file() + offset.files >= fileA);
-            assert(sq.file() + offset.files <= fileH);
+            assert(sq.file() + offset.files <= fileG);
             assert(sq.rank() + offset.ranks >= rank1);
-            assert(sq.rank() + offset.ranks <= rank8);
+            assert(sq.rank() + offset.ranks <= rank9);
             return operator+(sq, offset.flat());
         }
 
@@ -1325,16 +1324,18 @@ namespace chess
             return m_id;
         }
 
+        // Sequential encoding: file = m_id % 7
         [[nodiscard]] constexpr File file() const
         {
             assert(isOk());
-            return File(static_cast<unsigned>(m_id) & fileMask);
+            return fromOrdinal<File>(m_id % numFiles);
         }
 
+        // Sequential encoding: rank = m_id / 7
         [[nodiscard]] constexpr Rank rank() const
         {
             assert(isOk());
-            return Rank(static_cast<unsigned>(m_id) >> rankShift);
+            return fromOrdinal<Rank>(m_id / numFiles);
         }
 
         [[nodiscard]] constexpr SquareCoords coords() const
@@ -1342,30 +1343,42 @@ namespace chess
             return { file(), rank() };
         }
 
-        [[nodiscard]] constexpr Color color() const
-        {
-            assert(isOk());
-            return !fromOrdinal<Color>((ordinal(rank()) + ordinal(file())) & 1);
-        }
+        // [[nodiscard]] constexpr Color color() const
+        // {
+        //     assert(isOk());
+        //     return !fromOrdinal<Color>((ordinal(rank()) + ordinal(file())) & 1);
+        // }
 
+        // Vertical flip: rank' = 8 - rank
+        // New position: file + rank' * 7 = file + (8 - rank) * 7
         constexpr void flipVertically()
         {
-            m_id ^= rankMask;
+            const int f = m_id % numFiles;
+            const int r = m_id / numFiles;
+            m_id = f + (8 - r) * numFiles;
         }
 
+        // Horizontal flip: file' = 6 - file
+        // New position: file' + rank * 7 = (6 - file) + rank * 7
         constexpr void flipHorizontally()
         {
-            m_id ^= fileMask;
+            const int f = m_id % numFiles;
+            const int r = m_id / numFiles;
+            m_id = (6 - f) + r * numFiles;
         }
 
         constexpr Square flippedVertically() const
         {
-            return Square(m_id ^ rankMask);
+            Square sq = *this;
+            sq.flipVertically();
+            return sq;
         }
 
         constexpr Square flippedHorizontally() const
         {
-            return Square(m_id ^ fileMask);
+            Square sq = *this;
+            sq.flipHorizontally();
+            return sq;
         }
 
         [[nodiscard]] constexpr bool isOk() const
@@ -1377,6 +1390,7 @@ namespace chess
         std::int8_t m_id;
     };
 
+    // Jungle Chess squares: a1-g9 (7 files × 9 ranks = 63 squares)
     constexpr Square a1(fileA, rank1);
     constexpr Square a2(fileA, rank2);
     constexpr Square a3(fileA, rank3);
@@ -1385,6 +1399,7 @@ namespace chess
     constexpr Square a6(fileA, rank6);
     constexpr Square a7(fileA, rank7);
     constexpr Square a8(fileA, rank8);
+    constexpr Square a9(fileA, rank9);
 
     constexpr Square b1(fileB, rank1);
     constexpr Square b2(fileB, rank2);
@@ -1394,6 +1409,7 @@ namespace chess
     constexpr Square b6(fileB, rank6);
     constexpr Square b7(fileB, rank7);
     constexpr Square b8(fileB, rank8);
+    constexpr Square b9(fileB, rank9);
 
     constexpr Square c1(fileC, rank1);
     constexpr Square c2(fileC, rank2);
@@ -1403,6 +1419,7 @@ namespace chess
     constexpr Square c6(fileC, rank6);
     constexpr Square c7(fileC, rank7);
     constexpr Square c8(fileC, rank8);
+    constexpr Square c9(fileC, rank9);
 
     constexpr Square d1(fileD, rank1);
     constexpr Square d2(fileD, rank2);
@@ -1412,6 +1429,7 @@ namespace chess
     constexpr Square d6(fileD, rank6);
     constexpr Square d7(fileD, rank7);
     constexpr Square d8(fileD, rank8);
+    constexpr Square d9(fileD, rank9);
 
     constexpr Square e1(fileE, rank1);
     constexpr Square e2(fileE, rank2);
@@ -1421,6 +1439,7 @@ namespace chess
     constexpr Square e6(fileE, rank6);
     constexpr Square e7(fileE, rank7);
     constexpr Square e8(fileE, rank8);
+    constexpr Square e9(fileE, rank9);
 
     constexpr Square f1(fileF, rank1);
     constexpr Square f2(fileF, rank2);
@@ -1430,6 +1449,7 @@ namespace chess
     constexpr Square f6(fileF, rank6);
     constexpr Square f7(fileF, rank7);
     constexpr Square f8(fileF, rank8);
+    constexpr Square f9(fileF, rank9);
 
     constexpr Square g1(fileG, rank1);
     constexpr Square g2(fileG, rank2);
@@ -1439,24 +1459,16 @@ namespace chess
     constexpr Square g6(fileG, rank6);
     constexpr Square g7(fileG, rank7);
     constexpr Square g8(fileG, rank8);
+    constexpr Square g9(fileG, rank9);
 
-    constexpr Square h1(fileH, rank1);
-    constexpr Square h2(fileH, rank2);
-    constexpr Square h3(fileH, rank3);
-    constexpr Square h4(fileH, rank4);
-    constexpr Square h5(fileH, rank5);
-    constexpr Square h6(fileH, rank6);
-    constexpr Square h7(fileH, rank7);
-    constexpr Square h8(fileH, rank8);
+    // static_assert(d1.color() == Color::Black);
+    // static_assert(d9.color() == Color::White);
 
-    static_assert(e1.color() == Color::Black);
-    static_assert(e8.color() == Color::White);
+    static_assert(d1.file() == fileD);
+    static_assert(d1.rank() == rank1);
 
-    static_assert(e1.file() == fileE);
-    static_assert(e1.rank() == rank1);
-
-    static_assert(e1.flippedHorizontally() == d1);
-    static_assert(e1.flippedVertically() == e8);
+    static_assert(d1.flippedHorizontally() == d1);  // Center file d, flips to itself
+    static_assert(d1.flippedVertically() == d9);
 
     template <>
     struct EnumTraits<Square>
@@ -1464,18 +1476,19 @@ namespace chess
         using IdType = int;
         using EnumType = Square;
 
-        static constexpr int cardinality = chess::cardinality<Rank>() * chess::cardinality<File>();
+        static constexpr int cardinality = chess::cardinality<Rank>() * chess::cardinality<File>();  // 7 × 9 = 63
         static constexpr bool isNaturalIndex = true;
 
         static constexpr std::array<EnumType, cardinality> values{
-            a1, b1, c1, d1, e1, f1, g1, h1,
-            a2, b2, c2, d2, e2, f2, g2, h2,
-            a3, b3, c3, d3, e3, f3, g3, h3,
-            a4, b4, c4, d4, e4, f4, g4, h4,
-            a5, b5, c5, d5, e5, f5, g5, h5,
-            a6, b6, c6, d6, e6, f6, g6, h6,
-            a7, b7, c7, d7, e7, f7, g7, h7,
-            a8, b8, c8, d8, e8, f8, g8, h8
+            a1, b1, c1, d1, e1, f1, g1,
+            a2, b2, c2, d2, e2, f2, g2,
+            a3, b3, c3, d3, e3, f3, g3,
+            a4, b4, c4, d4, e4, f4, g4,
+            a5, b5, c5, d5, e5, f5, g5,
+            a6, b6, c6, d6, e6, f6, g6,
+            a7, b7, c7, d7, e7, f7, g7,
+            a8, b8, c8, d8, e8, f8, g8,
+            a9, b9, c9, d9, e9, f9, g9
         };
 
         [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
@@ -1496,14 +1509,15 @@ namespace chess
 
             return
                 std::string_view(
-                    "a1b1c1d1e1f1g1h1"
-                    "a2b2c2d2e2f2g2h2"
-                    "a3b3c3d3e3f3g3h3"
-                    "a4b4c4d4e4f4g4h4"
-                    "a5b5c5d5e5f5g5h5"
-                    "a6b6c6d6e6f6g6h6"
-                    "a7b7c7d7e7f7g7h7"
-                    "a8b8c8d8e8f8g8h8"
+                    "a1b1c1d1e1f1g1"
+                    "a2b2c2d2e2f2g2"
+                    "a3b3c3d3e3f3g3"
+                    "a4b4c4d4e4f4g4"
+                    "a5b5c5d5e5f5g5"
+                    "a6b6c6d6e6f6g6"
+                    "a7b7c7d7e7f7g7"
+                    "a8b8c8d8e8f8g8"
+                    "a9b9c9d9e9f9g9"
                 ).substr(ordinal(sq) * 2, 2);
         }
 
@@ -1513,22 +1527,22 @@ namespace chess
 
             const char f = sv[0];
             const char r = sv[1];
-            if (f < 'a' || f > 'h') return {};
-            if (r < '1' || r > '8') return {};
+            if (f < 'a' || f > 'g') return {};
+            if (r < '1' || r > '9') return {};
 
             return Square(static_cast<File>(f - 'a'), static_cast<Rank>(r - '1'));
         }
     };
 
     static_assert(toString(d1) == std::string_view("d1"));
-    static_assert(values<Square>()[29] == f4);
+    static_assert(values<Square>()[29] == b5);  // Position 29 = file 1 + rank 4 * 7 = 1 + 28 = 29 (b5? let me recalc: 4*7+1=29, so b5)
 
+    // 斗兽棋只有两种移动类型：普通移动和跳河（狮虎专属）
+    // Jungle chess only has two move types: Normal and RiverJump (Lion/Tiger only)
     enum struct MoveType : std::uint8_t
     {
-        Normal,
-        Promotion,
-        Castle,
-        EnPassant
+        Normal,      // 普通移动：一格直线移动 (one square orthogonal move)
+        RiverJump    // 跳河：狮/虎跨越整片河流 (Lion/Tiger jumping across river)
     };
 
     template <>
@@ -1537,52 +1551,12 @@ namespace chess
         using IdType = int;
         using EnumType = MoveType;
 
-        static constexpr int cardinality = 4;
-        static constexpr bool isNaturalIndex = true;
-
-        static constexpr std::array<EnumType, cardinality> values{
-            MoveType::Normal,
-            MoveType::Promotion,
-            MoveType::Castle,
-            MoveType::EnPassant
-        };
-
-        [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
-        {
-            return static_cast<IdType>(c);
-        }
-
-        [[nodiscard]] static constexpr EnumType fromOrdinal(IdType id) noexcept
-        {
-            assert(id >= 0 && id < cardinality);
-
-            return static_cast<EnumType>(id);
-        }
-    };
-
-    enum struct CastleType : std::uint8_t
-    {
-        Short,
-        Long
-    };
-
-    [[nodiscard]] constexpr CastleType operator!(CastleType ct)
-    {
-        return static_cast<CastleType>(static_cast<std::uint8_t>(ct) ^ 1);
-    }
-
-    template <>
-    struct EnumTraits<CastleType>
-    {
-        using IdType = int;
-        using EnumType = CastleType;
-
         static constexpr int cardinality = 2;
         static constexpr bool isNaturalIndex = true;
 
         static constexpr std::array<EnumType, cardinality> values{
-            CastleType::Short,
-            CastleType::Long
+            MoveType::Normal,
+            MoveType::RiverJump
         };
 
         [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
@@ -1600,21 +1574,20 @@ namespace chess
 
     struct CompressedMove;
 
-    // castling is encoded as a king capturing rook
-    // ep is encoded as a normal pawn capture (move.to is empty on the board)
+    // 斗兽棋移动结构
+    // Jungle chess move structure: only Normal and RiverJump types
     struct Move
     {
         Square from;
         Square to;
         MoveType type = MoveType::Normal;
-        Piece promotedPiece = Piece::none();
+        Piece memory_padding = Piece::none();
 
         [[nodiscard]] constexpr friend bool operator==(const Move& lhs, const Move& rhs) noexcept
         {
             return lhs.from == rhs.from
                 && lhs.to == rhs.to
-                && lhs.type == rhs.type
-                && lhs.promotedPiece == rhs.promotedPiece;
+                && lhs.type == rhs.type;
         }
 
         [[nodiscard]] constexpr friend bool operator!=(const Move& lhs, const Move& rhs) noexcept
@@ -1629,51 +1602,36 @@ namespace chess
             return Move{ Square::none(), Square::none() };
         }
 
-        [[nodiscard]] constexpr static Move castle(CastleType ct, Color c);
-
+        // 普通移动：一格直线移动
+        // Normal move: one square orthogonal movement
         [[nodiscard]] constexpr static Move normal(Square from, Square to)
         {
-            return Move{ from, to, MoveType::Normal, Piece::none() };
+            return Move{ from, to, MoveType::Normal };
         }
 
-        [[nodiscard]] constexpr static Move enPassant(Square from, Square to)
+        // 跳河：狮/虎跨越整片河流
+        // River jump: Lion/Tiger jumping across entire river
+        [[nodiscard]] constexpr static Move riverJump(Square from, Square to)
         {
-            return Move{ from, to, MoveType::EnPassant, Piece::none() };
-        }
-
-        [[nodiscard]] constexpr static Move promotion(Square from, Square to, Piece piece)
-        {
-            return Move{ from, to, MoveType::Promotion, piece };
+            return Move{ from, to, MoveType::RiverJump };
         }
     };
 
-    namespace detail::castle
-    {
-        constexpr EnumArray2<CastleType, Color, Move> moves = { {
-            {{ { e1, h1, MoveType::Castle }, { e8, h8, MoveType::Castle } }},
-            {{ { e1, a1, MoveType::Castle }, { e8, a8, MoveType::Castle } }}
-        } };
-    }
+    static_assert(sizeof(Move) == 3);
 
-    [[nodiscard]] constexpr Move Move::castle(CastleType ct, Color c)
-    {
-        return detail::castle::moves[ct][c];
-    }
-
-    static_assert(sizeof(Move) == 4);
-
+    // 斗兽棋压缩移动格式（16位）
+    // Jungle chess compressed move format (16 bits)
     struct CompressedMove
     {
     private:
-        // from most significant bits
-        // 2 bits for move type
-        // 6 bits for from square
-        // 6 bits for to square
-        // 2 bits for promoted piece type
-        //    0 if not a promotion
-        static constexpr std::uint16_t squareMask = 0b111111u;
-        static constexpr std::uint16_t promotedPieceTypeMask = 0b11u;
-        static constexpr std::uint16_t moveTypeMask = 0b11u;
+        // from most significant bits (从最高位开始)
+        // 2 bits for move type: 0=Normal, 1=RiverJump, 2-3=reserved (2位移动类型，留有冗余以备扩展)
+        // 6 bits for from square (0-62) (6位起点格子，斗兽棋有63格：7×9)
+        // 6 bits for to square (0-62) (6位终点格子)
+        // 2 bits reserved for future use (2位保留，以备将来使用)
+        static constexpr std::uint16_t squareMask = 0b111111u;      // 6 bits
+        static constexpr std::uint16_t moveTypeMask = 0b11u;        // 2 bits
+        static constexpr std::uint16_t reservedMask = 0b11u;        // 2 bits
 
     public:
         [[nodiscard]] constexpr static CompressedMove readFromBigEndian(const unsigned char* data)
@@ -1698,21 +1656,12 @@ namespace chess
                 assert(move.from != Square::none());
                 assert(move.to != Square::none());
 
+                // Bit layout: [2 bits type][6 bits from][6 bits to][2 bits reserved]
                 m_packed =
-                    (static_cast<std::uint16_t>(ordinal(move.type)) << (16 - 2))
-                    | (static_cast<std::uint16_t>(ordinal(move.from)) << (16 - 2 - 6))
-                    | (static_cast<std::uint16_t>(ordinal(move.to)) << (16 - 2 - 6 - 6));
-
-                if (move.type == MoveType::Promotion)
-                {
-                    assert(move.promotedPiece != Piece::none());
-
-                    m_packed |= ordinal(move.promotedPiece.type()) - ordinal(PieceType::Knight);
-                }
-                else
-                {
-                    assert(move.promotedPiece == Piece::none());
-                }
+                    (static_cast<std::uint16_t>(ordinal(move.type)) << 14)
+                    | (static_cast<std::uint16_t>(ordinal(move.from)) << 8)
+                    | (static_cast<std::uint16_t>(ordinal(move.to)) << 2);
+                // reserved bits are left as 0
             }
         }
 
@@ -1729,35 +1678,17 @@ namespace chess
 
         [[nodiscard]] constexpr MoveType type() const
         {
-            return fromOrdinal<MoveType>(m_packed >> (16 - 2));
+            return fromOrdinal<MoveType>((m_packed >> 14) & moveTypeMask);
         }
 
         [[nodiscard]] constexpr Square from() const
         {
-            return fromOrdinal<Square>((m_packed >> (16 - 2 - 6)) & squareMask);
+            return fromOrdinal<Square>((m_packed >> 8) & squareMask);
         }
 
         [[nodiscard]] constexpr Square to() const
         {
-            return fromOrdinal<Square>((m_packed >> (16 - 2 - 6 - 6)) & squareMask);
-        }
-
-        [[nodiscard]] constexpr Piece promotedPiece() const
-        {
-            if (type() == MoveType::Promotion)
-            {
-                const Color color =
-                    (to().rank() == rank1)
-                    ? Color::Black
-                    : Color::White;
-
-                const PieceType pt = fromOrdinal<PieceType>((m_packed & promotedPieceTypeMask) + ordinal(PieceType::Knight));
-                return color | pt;
-            }
-            else
-            {
-                return Piece::none();
-            }
+            return fromOrdinal<Square>((m_packed >> 2) & squareMask);
         }
 
         [[nodiscard]] constexpr Move decompress() const noexcept
@@ -1768,27 +1699,11 @@ namespace chess
             }
             else
             {
-                const MoveType type = fromOrdinal<MoveType>(m_packed >> (16 - 2));
-                const Square from = fromOrdinal<Square>((m_packed >> (16 - 2 - 6)) & squareMask);
-                const Square to = fromOrdinal<Square>((m_packed >> (16 - 2 - 6 - 6)) & squareMask);
-                const Piece promotedPiece = [&]() {
-                    if (type == MoveType::Promotion)
-                    {
-                        const Color color =
-                            (to.rank() == rank1)
-                            ? Color::Black
-                            : Color::White;
+                const MoveType type = fromOrdinal<MoveType>((m_packed >> 14) & moveTypeMask);
+                const Square from = fromOrdinal<Square>((m_packed >> 8) & squareMask);
+                const Square to = fromOrdinal<Square>((m_packed >> 2) & squareMask);
 
-                        const PieceType pt = fromOrdinal<PieceType>((m_packed & promotedPieceTypeMask) + ordinal(PieceType::Knight));
-                        return color | pt;
-                    }
-                    else
-                    {
-                        return Piece::none();
-                    }
-                }();
-
-                return Move{ from, to, type, promotedPiece };
+                return Move{ from, to, type };
             }
         }
 
