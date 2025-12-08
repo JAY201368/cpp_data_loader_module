@@ -1113,6 +1113,9 @@ namespace chess
 
     // files east
     // ranks north
+    /**
+     * 计算两格之间索引差值(单个值)
+     */
     struct FlatSquareOffset
     {
         std::int8_t value;
@@ -1141,6 +1144,9 @@ namespace chess
         }
     };
 
+    /**
+     * 两格差值(二维)
+     */
     struct Offset
     {
         std::int8_t files;
@@ -1203,7 +1209,7 @@ namespace chess
 
         [[nodiscard]] constexpr bool isOk() const
         {
-            return file >= fileA && file <= fileH && rank >= rank1 && rank <= rank8;
+            return file >= fileA && file <= fileG && rank >= rank1 && rank <= rank9;
         }
     };
 
