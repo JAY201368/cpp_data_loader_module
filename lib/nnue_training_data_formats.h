@@ -1617,7 +1617,7 @@ namespace chess
         }
     };
 
-    static_assert(sizeof(Move) == 3);
+    static_assert(sizeof(Move) == 4);
 
     // 斗兽棋压缩移动格式（16位）
     // Jungle chess compressed move format (16 bits)
@@ -1728,100 +1728,33 @@ namespace chess
     static_assert(e4 + Offset{ -1, 0 } == d4);
     static_assert(e4 + Offset{ -2, 0 } == c4);
 
-    enum struct CastlingRights : std::uint8_t
-    {
-        None = 0x0,
-        WhiteKingSide = 0x1,
-        WhiteQueenSide = 0x2,
-        BlackKingSide = 0x4,
-        BlackQueenSide = 0x8,
-        White = WhiteKingSide | WhiteQueenSide,
-        Black = BlackKingSide | BlackQueenSide,
-        All = WhiteKingSide | WhiteQueenSide | BlackKingSide | BlackQueenSide
-    };
-
-    [[nodiscard]] constexpr CastlingRights operator|(CastlingRights lhs, CastlingRights rhs)
-    {
-        return static_cast<CastlingRights>(static_cast<std::uint8_t>(lhs) | static_cast<std::uint8_t>(rhs));
-    }
-
-    [[nodiscard]] constexpr CastlingRights operator&(CastlingRights lhs, CastlingRights rhs)
-    {
-        return static_cast<CastlingRights>(static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(rhs));
-    }
-
-    [[nodiscard]] constexpr CastlingRights operator~(CastlingRights lhs)
-    {
-        return static_cast<CastlingRights>(~static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(CastlingRights::All));
-    }
-
-    constexpr CastlingRights& operator|=(CastlingRights& lhs, CastlingRights rhs)
-    {
-        lhs = static_cast<CastlingRights>(static_cast<std::uint8_t>(lhs) | static_cast<std::uint8_t>(rhs));
-        return lhs;
-    }
-
-    constexpr CastlingRights& operator&=(CastlingRights& lhs, CastlingRights rhs)
-    {
-        lhs = static_cast<CastlingRights>(static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(rhs));
-        return lhs;
-    }
-    // checks whether lhs contains rhs
-    [[nodiscard]] constexpr bool contains(CastlingRights lhs, CastlingRights rhs)
-    {
-        return (lhs & rhs) == rhs;
-    }
-
-    template <>
-    struct EnumTraits<CastlingRights>
-    {
-        using IdType = int;
-        using EnumType = CastlingRights;
-
-        static constexpr int cardinality = 4;
-        static constexpr bool isNaturalIndex = false;
-
-        static constexpr std::array<EnumType, cardinality> values{
-            CastlingRights::WhiteKingSide,
-            CastlingRights::WhiteQueenSide,
-            CastlingRights::BlackKingSide,
-            CastlingRights::BlackQueenSide
-        };
-
-        [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
-        {
-            return static_cast<IdType>(c);
-        }
-
-        [[nodiscard]] static constexpr EnumType fromOrdinal(IdType id) noexcept
-        {
-            return static_cast<EnumType>(id);
-        }
-    };
+    // 斗兽棋没有王车易位，因此不需要 CastlingRights
+    // Jungle chess has no castling, so CastlingRights is not needed(all deleted)
 
     struct CompressedReverseMove;
 
+    // 斗兽棋反向移动结构 (用于撤销移动)
+    // Jungle chess reverse move structure (for undoing moves)
     struct ReverseMove
     {
-        Move move;
-        Piece capturedPiece;
-        Square oldEpSquare;
-        CastlingRights oldCastlingRights;
+        Move move;              // 4 bytes
+        Piece capturedPiece;    // 1 byte
+        // 斗兽棋不需要 oldEpSquare 和 oldCastlingRights
+        // Jungle chess doesn't need oldEpSquare or oldCastlingRights
+        std::uint8_t padding[2]; // 2 bytes padding to maintain size = 7 bytes
 
-        // We need a well defined case for the starting position.
+        // We need a well-defined case for the starting position.
         constexpr ReverseMove() :
             move(Move::null()),
             capturedPiece(Piece::none()),
-            oldEpSquare(Square::none()),
-            oldCastlingRights(CastlingRights::All)
+            padding{}
         {
         }
 
-        constexpr ReverseMove(const Move& move_, Piece capturedPiece_, Square oldEpSquare_, CastlingRights oldCastlingRights_) :
+        constexpr ReverseMove(const Move& move_, Piece capturedPiece_) :
             move(move_),
             capturedPiece(capturedPiece_),
-            oldEpSquare(oldEpSquare_),
-            oldCastlingRights(oldCastlingRights_)
+            padding{}
         {
         }
 
@@ -1835,9 +1768,7 @@ namespace chess
         [[nodiscard]] constexpr friend bool operator==(const ReverseMove& lhs, const ReverseMove& rhs) noexcept
         {
             return lhs.move == rhs.move
-                && lhs.capturedPiece == rhs.capturedPiece
-                && lhs.oldEpSquare == rhs.oldEpSquare
-                && lhs.oldCastlingRights == rhs.oldCastlingRights;
+                && lhs.capturedPiece == rhs.capturedPiece;
         }
 
         [[nodiscard]] constexpr friend bool operator!=(const ReverseMove& lhs, const ReverseMove& rhs) noexcept
@@ -1848,13 +1779,14 @@ namespace chess
 
     static_assert(sizeof(ReverseMove) == 7);
 
+    // 斗兽棋压缩反向移动格式（32位）
+    // Jungle chess compressed reverse move format (32 bits)
     struct CompressedReverseMove
     {
     private:
-        // we use 7 bits because it can be Square::none()
-        static constexpr std::uint32_t squareMask = 0b1111111u;
-        static constexpr std::uint32_t pieceMask = 0b1111u;
-        static constexpr std::uint32_t castlingRightsMask = 0b1111;
+        // 16位布局：[4位被吃棋子][12位保留]
+        // 16-bit layout: [4 bits captured piece][12 bits reserved]
+        static constexpr std::uint32_t pieceMask = 0b1111u;  // 4 bits for captured piece
     public:
 
         constexpr CompressedReverseMove() noexcept :
@@ -1866,9 +1798,8 @@ namespace chess
         constexpr CompressedReverseMove(const ReverseMove& rm) noexcept :
             m_move(rm.move.compress()),
             m_oldState{ static_cast<uint16_t>(
-                ((ordinal(rm.capturedPiece) & pieceMask) << 11)
-                | ((ordinal(rm.oldCastlingRights) & castlingRightsMask) << 7)
-                | (ordinal(rm.oldEpSquare) & squareMask)
+                (ordinal(rm.capturedPiece) & pieceMask) << 12
+                // Lower 12 bits reserved for future use (currently 0)
                 )
             }
         {
@@ -1886,33 +1817,18 @@ namespace chess
 
         [[nodiscard]] constexpr Piece capturedPiece() const
         {
-            return fromOrdinal<Piece>(m_oldState >> 11);
-        }
-
-        [[nodiscard]] constexpr CastlingRights oldCastlingRights() const
-        {
-            return fromOrdinal<CastlingRights>((m_oldState >> 7) & castlingRightsMask);
-        }
-
-        [[nodiscard]] constexpr Square oldEpSquare() const
-        {
-            return fromOrdinal<Square>(m_oldState & squareMask);
+            return fromOrdinal<Piece>(m_oldState >> 12);
         }
 
         [[nodiscard]] constexpr ReverseMove decompress() const noexcept
         {
-            const Piece capturedPiece = fromOrdinal<Piece>(m_oldState >> 11);
-            const CastlingRights castlingRights = fromOrdinal<CastlingRights>((m_oldState >> 7) & castlingRightsMask);
-            // We could pack the ep square more, but don't have to, because
-            // can't save another byte anyway.
-            const Square epSquare = fromOrdinal<Square>(m_oldState & squareMask);
-
-            return ReverseMove(m_move.decompress(), capturedPiece, epSquare, castlingRights);
+            const Piece capturedPiece = fromOrdinal<Piece>(m_oldState >> 12);
+            return ReverseMove(m_move.decompress(), capturedPiece);
         }
 
     private:
-        CompressedMove m_move;
-        std::uint16_t m_oldState;
+        CompressedMove m_move;      // 2 bytes
+        std::uint16_t m_oldState;   // 2 bytes (only top 4 bits used for captured piece)
     };
 
     static_assert(sizeof(CompressedReverseMove) == 4);
@@ -1922,43 +1838,39 @@ namespace chess
         return CompressedReverseMove(*this);
     }
 
+    // 斗兽棋打包反向移动格式（高度压缩）
+    // Jungle chess packed reverse move format (highly compressed)
     // This can be regarded as a perfect hash. Going back is hard.
     struct PackedReverseMove
     {
-        static constexpr std::uint32_t mask = 0x7FFFFFFu;
-        static constexpr std::size_t numBits = 27;
+        // 斗兽棋需要18位：6位from + 6位to + 2位type + 4位captured
+        // Jungle chess needs 18 bits: 6 bits from + 6 bits to + 2 bits type + 4 bits captured
+        static constexpr std::uint32_t mask = 0x3FFFFu;      // 18 bits (was 27 for chess)
+        static constexpr std::size_t numBits = 18;           // (was 27 for chess)
 
     private:
-        static constexpr std::uint32_t squareMask = 0b111111u;
-        static constexpr std::uint32_t pieceMask = 0b1111u;
-        static constexpr std::uint32_t pieceTypeMask = 0b111u;
-        static constexpr std::uint32_t castlingRightsMask = 0b1111;
-        static constexpr std::uint32_t fileMask = 0b111;
+        static constexpr std::uint32_t squareMask = 0b111111u;  // 6 bits
+        static constexpr std::uint32_t pieceMask = 0b1111u;     // 4 bits
+        static constexpr std::uint32_t moveTypeMask = 0b11u;    // 2 bits
 
     public:
         constexpr PackedReverseMove(const std::uint32_t packed) :
             m_packed(packed)
         {
-
         }
 
         constexpr PackedReverseMove(const ReverseMove& reverseMove) :
             m_packed(
                 0u
-                // The only move when square is none() is null move and
-                // then both squares are none(). No other move is like that
-                // so we don't lose any information by storing only
-                // the 6 bits of each square.
-                | ((ordinal(reverseMove.move.from) & squareMask) << 21)
-                | ((ordinal(reverseMove.move.to) & squareMask) << 15)
-                // Other masks are just for code clarity, they should
-                // never change the values.
-                | ((ordinal(reverseMove.capturedPiece) & pieceMask) << 11)
-                | ((ordinal(reverseMove.oldCastlingRights) & castlingRightsMask) << 7)
-                | ((ordinal(reverseMove.move.promotedPiece.type()) & pieceTypeMask) << 4)
-                | (((reverseMove.oldEpSquare != Square::none()) & 1) << 3)
-                // We probably could omit the squareMask here but for clarity it's left.
-                | (ordinal(Square(ordinal(reverseMove.oldEpSquare) & squareMask).file()) & fileMask)
+                // Bit layout for jungle chess (18 bits used):
+                // - 6 bits from square (bits 12-17)
+                // - 6 bits to square (bits 6-11)
+                // - 4 bits captured piece (bits 2-5)
+                // - 2 bits move type (bits 0-1)
+                | ((ordinal(reverseMove.move.from) & squareMask) << 12)
+                | ((ordinal(reverseMove.move.to) & squareMask) << 6)
+                | ((ordinal(reverseMove.capturedPiece) & pieceMask) << 2)
+                | (ordinal(reverseMove.move.type) & moveTypeMask)
             )
         {
         }
@@ -1968,72 +1880,27 @@ namespace chess
             return m_packed;
         }
 
-        constexpr ReverseMove unpack(Color sideThatMoved) const
+        // 斗兽棋不需要 sideThatMoved 参数，因为没有升变
+        // Jungle chess doesn't need sideThatMoved parameter since there's no promotion
+        constexpr ReverseMove unpack() const
         {
             ReverseMove rmove{};
 
-            rmove.move.from = fromOrdinal<Square>((m_packed >> 21) & squareMask);
-            rmove.move.to = fromOrdinal<Square>((m_packed >> 15) & squareMask);
-            rmove.capturedPiece = fromOrdinal<Piece>((m_packed >> 11) & pieceMask);
-            rmove.oldCastlingRights = fromOrdinal<CastlingRights>((m_packed >> 7) & castlingRightsMask);
-            const PieceType promotedPieceType = fromOrdinal<PieceType>((m_packed >> 4) & pieceTypeMask);
-            if (promotedPieceType != PieceType::None)
-            {
-                rmove.move.promotedPiece = Piece(promotedPieceType, sideThatMoved);
-                rmove.move.type = MoveType::Promotion;
-            }
-            const bool hasEpSquare = static_cast<bool>((m_packed >> 3) & 1);
-            if (hasEpSquare)
-            {
-                // ep square is always where the opponent moved
-                const Rank rank =
-                    sideThatMoved == Color::White
-                    ? rank6
-                    : rank3;
-                const File file = fromOrdinal<File>(m_packed & fileMask);
-                rmove.oldEpSquare = Square(file, rank);
-                if (rmove.oldEpSquare == rmove.move.to)
-                {
-                    rmove.move.type = MoveType::EnPassant;
-                }
-            }
-            else
-            {
-                rmove.oldEpSquare = Square::none();
-            }
-
-            if (rmove.move.type == MoveType::Normal && rmove.oldCastlingRights != CastlingRights::None)
-            {
-                // If castling was possible then we know it was the king that moved from e1/e8.
-                if (rmove.move.from == e1)
-                {
-                    if (rmove.move.to == h1 || rmove.move.to == a1)
-                    {
-                        rmove.move.type = MoveType::Castle;
-                    }
-                }
-                else if (rmove.move.from == e8)
-                {
-                    if (rmove.move.to == h8 || rmove.move.to == a8)
-                    {
-                        rmove.move.type = MoveType::Castle;
-                    }
-                }
-            }
+            rmove.move.from = fromOrdinal<Square>((m_packed >> 12) & squareMask);
+            rmove.move.to = fromOrdinal<Square>((m_packed >> 6) & squareMask);
+            rmove.capturedPiece = fromOrdinal<Piece>((m_packed >> 2) & pieceMask);
+            rmove.move.type = fromOrdinal<MoveType>(m_packed & moveTypeMask);
 
             return rmove;
         }
 
     private:
-        // Uses only 27 lowest bits.
-        // Bit meaning from highest to lowest.
-        // - 6 bits from
-        // - 6 bits to
-        // - 4 bits for the captured piece
-        // - 4 bits for prev castling rights
-        // - 3 bits promoted piece type
-        // - 1 bit  to specify if the ep square was valid (false if none())
-        // - 3 bits for prev ep square file
+        // Uses only 18 lowest bits (斗兽棋仅使用低18位，chess用27位)
+        // Bit meaning from highest to lowest:
+        // - 6 bits from square (bits 12-17)
+        // - 6 bits to square (bits 6-11)
+        // - 4 bits captured piece (bits 2-5)
+        // - 2 bits move type (bits 0-1): Normal=0, RiverJump=1
         std::uint32_t m_packed;
     };
 
