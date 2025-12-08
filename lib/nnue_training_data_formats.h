@@ -999,11 +999,15 @@ namespace chess
         std::int8_t m_i;
     };
 
+    // Jungle Chess board: 7 columns × 9 rows (7×9)
+    // Columns: a-g (UCI format)
+    // Rows: 1-9 (UCI format, note: internal rank 0 = UCI row 1)
     struct FileTag;
     struct RankTag;
     using File = Coord<FileTag>;
     using Rank = Coord<RankTag>;
 
+    // Files: 7 columns (a-g)
     constexpr File fileA = File(0);
     constexpr File fileB = File(1);
     constexpr File fileC = File(2);
@@ -1011,8 +1015,8 @@ namespace chess
     constexpr File fileE = File(4);
     constexpr File fileF = File(5);
     constexpr File fileG = File(6);
-    constexpr File fileH = File(7);
 
+    // Ranks: 9 rows (1-9 in UCI, 0-8 internally)
     constexpr Rank rank1 = Rank(0);
     constexpr Rank rank2 = Rank(1);
     constexpr Rank rank3 = Rank(2);
@@ -1021,6 +1025,7 @@ namespace chess
     constexpr Rank rank6 = Rank(5);
     constexpr Rank rank7 = Rank(6);
     constexpr Rank rank8 = Rank(7);
+    constexpr Rank rank9 = Rank(8);
 
     template <>
     struct EnumTraits<File>
@@ -1028,7 +1033,7 @@ namespace chess
         using IdType = int;
         using EnumType = File;
 
-        static constexpr int cardinality = 8;
+        static constexpr int cardinality = 7;  // 7 columns for Jungle Chess
         static constexpr bool isNaturalIndex = true;
 
         [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
@@ -1045,14 +1050,14 @@ namespace chess
 
         [[nodiscard]] static constexpr std::string_view toString(EnumType c) noexcept
         {
-            assert(ordinal(c) >= 0 && ordinal(c) < 8);
+            assert(ordinal(c) >= 0 && ordinal(c) < 7);
 
-            return std::string_view("abcdefgh").substr(ordinal(c), 1);
+            return std::string_view("abcdefg").substr(ordinal(c), 1);
         }
 
         [[nodiscard]] static constexpr std::optional<File> fromChar(char c) noexcept
         {
-            if (c < 'a' || c > 'h') return {};
+            if (c < 'a' || c > 'g') return {};
             return static_cast<File>(c - 'a');
         }
 
@@ -1070,7 +1075,7 @@ namespace chess
         using IdType = int;
         using EnumType = Rank;
 
-        static constexpr int cardinality = 8;
+        static constexpr int cardinality = 9;  // 9 rows for Jungle Chess
         static constexpr bool isNaturalIndex = true;
 
         [[nodiscard]] static constexpr int ordinal(EnumType c) noexcept
@@ -1087,14 +1092,14 @@ namespace chess
 
         [[nodiscard]] static constexpr std::string_view toString(EnumType c) noexcept
         {
-            assert(ordinal(c) >= 0 && ordinal(c) < 8);
+            assert(ordinal(c) >= 0 && ordinal(c) < 9);
 
-            return std::string_view("12345678").substr(ordinal(c), 1);
+            return std::string_view("123456789").substr(ordinal(c), 1);
         }
 
         [[nodiscard]] static constexpr std::optional<Rank> fromChar(char c) noexcept
         {
-            if (c < '1' || c > '8') return {};
+            if (c < '1' || c > '9') return {};
             return static_cast<Rank>(c - '1');
         }
 
