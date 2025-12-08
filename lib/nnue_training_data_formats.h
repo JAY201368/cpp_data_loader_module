@@ -339,6 +339,11 @@ namespace chess
         return EnumTraits<EnumT>::isNaturalIndex;
     }
 
+    /**
+     * 返回枚举类的基数(元素个数)
+     * @tparam EnumT 模版类型
+     * @return 基数
+     */
     template <typename EnumT>
     [[nodiscard]] constexpr int cardinality() noexcept
     {
@@ -351,14 +356,22 @@ namespace chess
         return EnumTraits<EnumT>::values;
     }
 
+    /**
+     * 根据索引id返回枚举对象
+     * 不是自然索引就直接放行, 否则检查范围
+     */
     template <typename EnumT>
     [[nodiscard]] constexpr EnumT fromOrdinal(int id) noexcept
     {
+        // 不是自然索引就直接放行, 否则检查范围
         assert(!EnumTraits<EnumT>::isNaturalIndex || (id >= 0 && id < EnumTraits<EnumT>::cardinality));
 
         return EnumTraits<EnumT>::fromOrdinal(id);
     }
 
+    /**
+     * 由枚举对象转回ID?
+     */
     template <typename EnumT>
     [[nodiscard]] constexpr typename EnumTraits<EnumT>::IdType ordinal(EnumT v) noexcept
     {
@@ -432,6 +445,12 @@ namespace chess
         }
     };
 
+    /**
+     * 使用枚举类做索引的数组
+     * @tparam EnumT 枚举类, 必须为自然索引
+     * @tparam ValueT 数组元素类型
+     * @tparam SizeV 数组大小, 默认为枚举类基数
+     */
     template <typename EnumT, typename ValueT, std::size_t SizeV = cardinality<EnumT>()>
     struct EnumArray
     {
@@ -439,7 +458,7 @@ namespace chess
 
         using value_type      = ValueT;
         using size_type       = std::size_t;
-        using difference_type = std::ptrdiff_t;
+        using difference_type = std::ptrdiff_t;  // 有符号整数类型，用于表示两个指针之间的差, 即指针相减的结果
         using pointer         = ValueT *;
         using const_pointer   = const ValueT*;
         using reference       = ValueT &;
@@ -574,6 +593,9 @@ namespace chess
         ValueT elements[SizeV];
     };
 
+    /**
+     * 使用枚举类做索引的二维数组
+     */
     template <typename Enum1T, typename Enum2T, typename ValueT, std::size_t Size1V = cardinality<Enum1T>(), std::size_t Size2V = cardinality<Enum2T>()>
     using EnumArray2 = EnumArray<Enum1T, EnumArray<Enum2T, ValueT, Size2V>, Size1V>;
 
