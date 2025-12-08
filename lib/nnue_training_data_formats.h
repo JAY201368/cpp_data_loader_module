@@ -662,14 +662,19 @@ namespace chess
         return fromOrdinal<Color>(ordinal(c) ^ 1);
     }
 
+    // Jungle Chess pieces (斗兽棋棋子)
+    // Ordered from weakest to strongest to match game strength values (1-8)
+    // UCI mapping: ELTPWDCR (White/uppercase) and eltpwdcr (Black/lowercase)
     enum struct PieceType : std::uint8_t
     {
-        Pawn,
-        Knight,
-        Bishop,
-        Rook,
-        Queen,
-        King,
+        Rat,       // 鼠 (1) - R/r - ordinal 0
+        Cat,       // 猫 (2) - C/c - ordinal 1
+        Dog,       // 狗 (3) - D/d - ordinal 2
+        Wolf,      // 狼 (4) - W/w - ordinal 3
+        Panther,   // 豹 (5) - P/p - ordinal 4 (原LEOPARD，但首字母L与狮冲突)
+        Tiger,     // 虎 (6) - T/t - ordinal 5
+        Lion,      // 狮 (7) - L/l - ordinal 6
+        Elephant,  // 象 (8) - E/e - ordinal 7
 
         None
     };
@@ -680,16 +685,18 @@ namespace chess
         using IdType = int;
         using EnumType = PieceType;
 
-        static constexpr int cardinality = 7;
+        static constexpr int cardinality = 9;
         static constexpr bool isNaturalIndex = true;
 
         static constexpr std::array<EnumType, cardinality> values{
-            PieceType::Pawn,
-            PieceType::Knight,
-            PieceType::Bishop,
-            PieceType::Rook,
-            PieceType::Queen,
-            PieceType::King,
+            PieceType::Rat,
+            PieceType::Cat,
+            PieceType::Dog,
+            PieceType::Wolf,
+            PieceType::Panther,
+            PieceType::Tiger,
+            PieceType::Lion,
+            PieceType::Elephant,
             PieceType::None
         };
 
@@ -707,17 +714,17 @@ namespace chess
 
         [[nodiscard]] static constexpr std::string_view toString(EnumType p, Color c) noexcept
         {
-            return std::string_view("PpNnBbRrQqKk ").substr((chess::ordinal(p) * 2 + chess::ordinal(c)), 1);
+            return std::string_view("RrCcDdWwPpTtLlEe ").substr((chess::ordinal(p) * 2 + chess::ordinal(c)), 1);
         }
 
         [[nodiscard]] static constexpr char toChar(EnumType p, Color c) noexcept
         {
-            return "PpNnBbRrQqKk "[chess::ordinal(p) * 2 + chess::ordinal(c)];
+            return "RrCcDdWwPpTtLlEe "[chess::ordinal(p) * 2 + chess::ordinal(c)];
         }
 
         [[nodiscard]] static constexpr std::optional<PieceType> fromChar(char c) noexcept
         {
-            auto it = std::string_view("PpNnBbRrQqKk ").find(c);
+            auto it = std::string_view("RrCcDdWwPpTtLlEe ").find(c);
             if (it == std::string::npos) return {};
             else return static_cast<PieceType>(it/2);
         }
@@ -805,19 +812,25 @@ namespace chess
         return Piece(type, color);
     }
 
-    constexpr Piece whitePawn = Piece(PieceType::Pawn, Color::White);
-    constexpr Piece whiteKnight = Piece(PieceType::Knight, Color::White);
-    constexpr Piece whiteBishop = Piece(PieceType::Bishop, Color::White);
-    constexpr Piece whiteRook = Piece(PieceType::Rook, Color::White);
-    constexpr Piece whiteQueen = Piece(PieceType::Queen, Color::White);
-    constexpr Piece whiteKing = Piece(PieceType::King, Color::White);
+    // White (uppercase) pieces
+    constexpr Piece whiteRat = Piece(PieceType::Rat, Color::White);
+    constexpr Piece whiteCat = Piece(PieceType::Cat, Color::White);
+    constexpr Piece whiteDog = Piece(PieceType::Dog, Color::White);
+    constexpr Piece whiteWolf = Piece(PieceType::Wolf, Color::White);
+    constexpr Piece whitePanther = Piece(PieceType::Panther, Color::White);
+    constexpr Piece whiteTiger = Piece(PieceType::Tiger, Color::White);
+    constexpr Piece whiteLion = Piece(PieceType::Lion, Color::White);
+    constexpr Piece whiteElephant = Piece(PieceType::Elephant, Color::White);
 
-    constexpr Piece blackPawn = Piece(PieceType::Pawn, Color::Black);
-    constexpr Piece blackKnight = Piece(PieceType::Knight, Color::Black);
-    constexpr Piece blackBishop = Piece(PieceType::Bishop, Color::Black);
-    constexpr Piece blackRook = Piece(PieceType::Rook, Color::Black);
-    constexpr Piece blackQueen = Piece(PieceType::Queen, Color::Black);
-    constexpr Piece blackKing = Piece(PieceType::King, Color::Black);
+    // Black (lowercase) pieces
+    constexpr Piece blackRat = Piece(PieceType::Rat, Color::Black);
+    constexpr Piece blackCat = Piece(PieceType::Cat, Color::Black);
+    constexpr Piece blackDog = Piece(PieceType::Dog, Color::Black);
+    constexpr Piece blackWolf = Piece(PieceType::Wolf, Color::Black);
+    constexpr Piece blackPanther = Piece(PieceType::Panther, Color::Black);
+    constexpr Piece blackTiger = Piece(PieceType::Tiger, Color::Black);
+    constexpr Piece blackLion = Piece(PieceType::Lion, Color::Black);
+    constexpr Piece blackElephant = Piece(PieceType::Elephant, Color::Black);
 
     static_assert(Piece::none().type() == PieceType::None);
 
@@ -827,22 +840,26 @@ namespace chess
         using IdType = int;
         using EnumType = Piece;
 
-        static constexpr int cardinality = 13;
+        static constexpr int cardinality = 17;  // 8 piece types × 2 colors + 1 none
         static constexpr bool isNaturalIndex = true;
 
         static constexpr std::array<EnumType, cardinality> values{
-            whitePawn,
-            blackPawn,
-            whiteKnight,
-            blackKnight,
-            whiteBishop,
-            blackBishop,
-            whiteRook,
-            blackRook,
-            whiteQueen,
-            blackQueen,
-            whiteKing,
-            blackKing,
+            whiteRat,
+            blackRat,
+            whiteCat,
+            blackCat,
+            whiteDog,
+            blackDog,
+            whiteWolf,
+            blackWolf,
+            whitePanther,
+            blackPanther,
+            whiteTiger,
+            blackTiger,
+            whiteLion,
+            blackLion,
+            whiteElephant,
+            blackElephant,
             Piece::none()
         };
 
@@ -860,17 +877,17 @@ namespace chess
 
         [[nodiscard]] static constexpr std::string_view toString(EnumType p) noexcept
         {
-            return std::string_view("PpNnBbRrQqKk ").substr(ordinal(p), 1);
+            return std::string_view("RrCcDdWwPpTtLlEe ").substr(ordinal(p), 1);
         }
 
         [[nodiscard]] static constexpr char toChar(EnumType p) noexcept
         {
-            return "PpNnBbRrQqKk "[ordinal(p)];
+            return "RrCcDdWwPpTtLlEe "[ordinal(p)];
         }
 
         [[nodiscard]] static constexpr std::optional<Piece> fromChar(char c) noexcept
         {
-            auto it = std::string_view("PpNnBbRrQqKk ").find(c);
+            auto it = std::string_view("RrCcDdWwPpTtLlEe ").find(c);
             if (it == std::string::npos) return {};
             else return Piece::fromId(static_cast<int>(it));
         }
@@ -883,6 +900,10 @@ namespace chess
         }
     };
 
+    /**
+     * 你意思是你写了一个uint8_t的包装类? 是人我吃.
+     * @tparam TagT
+     */
     template <typename TagT>
     struct Coord
     {
