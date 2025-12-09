@@ -1904,6 +1904,9 @@ namespace chess
         std::uint32_t m_packed;
     };
 
+    // 斗兽棋移动比较结构 (Jungle Chess Move Comparison)
+    // 斗兽棋的 Move 只包含 from, to, type，没有 promotedPiece
+    // Jungle Chess Move only contains from, to, type - no promotedPiece
     struct MoveCompareLess
     {
         [[nodiscard]] bool operator()(const Move& lhs, const Move& rhs) const noexcept
@@ -1915,14 +1918,16 @@ namespace chess
             if (ordinal(lhs.to) > ordinal(rhs.to)) return false;
 
             if (ordinal(lhs.type) < ordinal(rhs.type)) return true;
-            if (ordinal(lhs.type) > ordinal(rhs.type)) return false;
-
-            if (ordinal(lhs.promotedPiece) < ordinal(rhs.promotedPiece)) return true;
 
             return false;
         }
     };
 
+    // 斗兽棋反向移动比较结构 (Jungle Chess Reverse Move Comparison)
+    // 斗兽棋的 ReverseMove 只包含 move 和 capturedPiece
+    // 没有 oldCastlingRights 和 oldEpSquare（斗兽棋无王车易位和过路兵）
+    // Jungle Chess ReverseMove only contains move and capturedPiece
+    // No oldCastlingRights or oldEpSquare (no castling or en passant in Jungle Chess)
     struct ReverseMoveCompareLess
     {
         [[nodiscard]] bool operator()(const ReverseMove& lhs, const ReverseMove& rhs) const noexcept
@@ -1931,13 +1936,6 @@ namespace chess
             if (MoveCompareLess{}(rhs.move, lhs.move)) return false;
 
             if (ordinal(lhs.capturedPiece) < ordinal(rhs.capturedPiece)) return true;
-            if (ordinal(lhs.capturedPiece) > ordinal(rhs.capturedPiece)) return false;
-
-            if (static_cast<unsigned>(lhs.oldCastlingRights) < static_cast<unsigned>(rhs.oldCastlingRights)) return true;
-            if (static_cast<unsigned>(lhs.oldCastlingRights) > static_cast<unsigned>(rhs.oldCastlingRights)) return false;
-
-            if (ordinal(lhs.oldEpSquare) < ordinal(rhs.oldEpSquare)) return true;
-            if (ordinal(lhs.oldEpSquare) > ordinal(rhs.oldEpSquare)) return false;
 
             return false;
         }
