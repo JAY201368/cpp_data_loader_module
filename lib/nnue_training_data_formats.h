@@ -2458,177 +2458,194 @@ namespace chess
         return Bitboard::fromBits(bits);
     }
 
+
+    // 斗兽棋位棋盘工具命名空间
+    // Jungle Chess bitboard utilities namespace
     namespace bb
     {
-        namespace fancy_magics
+        // 斗兽棋不需要魔法位棋盘（Magic Bitboards）
+        // Jungle Chess doesn't need magic bitboards for move generation
+        //
+        // 原因 (Reasons):
+        // 1. 国际象棋的车和象是滑动棋子，需要根据阻挡情况计算攻击范围
+        //    Chess rooks/bishops are sliding pieces needing blocker-dependent attack calculation
+        // 2. 斗兽棋的所有棋子（除狮虎跳河）都是单步移动，不需要复杂的滑动计算
+        //    Jungle Chess pieces (except lion/tiger river jump) move one square, no sliding
+        // 3. 狮虎跳河是特殊规则，只需检查水域中是否有老鼠阻挡
+        //    Lion/Tiger river jump is a special case, just check for rats in water
+        //
+        // 斗兽棋的移动生成使用简单的方向偏移和特殊地形检查
+        // Jungle Chess move generation uses simple directional offsets and terrain checks
+
+        // 斗兽棋特殊地形位棋盘 (Jungle Chess special terrain bitboards)
+
+        // 水域位棋盘：两片2列×3行的水域区域
+        // Water bitboards: two 2×3 water regions (2 files × 3 ranks each)
+        // 水域1 (Left river): b4, b5, b6, c4, c5, c6 (files b-c, ranks 4-6)
+        // 水域2 (Right river): e4, e5, e6, f4, f5, f6 (files e-f, ranks 4-6)
+        inline Bitboard waterSquares()
         {
-            // Implementation based on https://github.com/syzygy1/Cfish
+            Bitboard water = Bitboard::none();
 
-            alignas(64) constexpr EnumArray<Square, std::uint64_t> g_rookMagics{ {
-                0x0A80004000801220ull,
-                0x8040004010002008ull,
-                0x2080200010008008ull,
-                0x1100100008210004ull,
-                0xC200209084020008ull,
-                0x2100010004000208ull,
-                0x0400081000822421ull,
-                0x0200010422048844ull,
-                0x0800800080400024ull,
-                0x0001402000401000ull,
-                0x3000801000802001ull,
-                0x4400800800100083ull,
-                0x0904802402480080ull,
-                0x4040800400020080ull,
-                0x0018808042000100ull,
-                0x4040800080004100ull,
-                0x0040048001458024ull,
-                0x00A0004000205000ull,
-                0x3100808010002000ull,
-                0x4825010010000820ull,
-                0x5004808008000401ull,
-                0x2024818004000A00ull,
-                0x0005808002000100ull,
-                0x2100060004806104ull,
-                0x0080400880008421ull,
-                0x4062220600410280ull,
-                0x010A004A00108022ull,
-                0x0000100080080080ull,
-                0x0021000500080010ull,
-                0x0044000202001008ull,
-                0x0000100400080102ull,
-                0xC020128200040545ull,
-                0x0080002000400040ull,
-                0x0000804000802004ull,
-                0x0000120022004080ull,
-                0x010A386103001001ull,
-                0x9010080080800400ull,
-                0x8440020080800400ull,
-                0x0004228824001001ull,
-                0x000000490A000084ull,
-                0x0080002000504000ull,
-                0x200020005000C000ull,
-                0x0012088020420010ull,
-                0x0010010080080800ull,
-                0x0085001008010004ull,
-                0x0002000204008080ull,
-                0x0040413002040008ull,
-                0x0000304081020004ull,
-                0x0080204000800080ull,
-                0x3008804000290100ull,
-                0x1010100080200080ull,
-                0x2008100208028080ull,
-                0x5000850800910100ull,
-                0x8402019004680200ull,
-                0x0120911028020400ull,
-                0x0000008044010200ull,
-                0x0020850200244012ull,
-                0x0020850200244012ull,
-                0x0000102001040841ull,
-                0x140900040A100021ull,
-                0x000200282410A102ull,
-                0x000200282410A102ull,
-                0x000200282410A102ull,
-                0x4048240043802106ull
-                    } };
-
-            alignas(64) constexpr EnumArray<Square, std::uint64_t> g_bishopMagics{ {
-                0x40106000A1160020ull,
-                0x0020010250810120ull,
-                0x2010010220280081ull,
-                0x002806004050C040ull,
-                0x0002021018000000ull,
-                0x2001112010000400ull,
-                0x0881010120218080ull,
-                0x1030820110010500ull,
-                0x0000120222042400ull,
-                0x2000020404040044ull,
-                0x8000480094208000ull,
-                0x0003422A02000001ull,
-                0x000A220210100040ull,
-                0x8004820202226000ull,
-                0x0018234854100800ull,
-                0x0100004042101040ull,
-                0x0004001004082820ull,
-                0x0010000810010048ull,
-                0x1014004208081300ull,
-                0x2080818802044202ull,
-                0x0040880C00A00100ull,
-                0x0080400200522010ull,
-                0x0001000188180B04ull,
-                0x0080249202020204ull,
-                0x1004400004100410ull,
-                0x00013100A0022206ull,
-                0x2148500001040080ull,
-                0x4241080011004300ull,
-                0x4020848004002000ull,
-                0x10101380D1004100ull,
-                0x0008004422020284ull,
-                0x01010A1041008080ull,
-                0x0808080400082121ull,
-                0x0808080400082121ull,
-                0x0091128200100C00ull,
-                0x0202200802010104ull,
-                0x8C0A020200440085ull,
-                0x01A0008080B10040ull,
-                0x0889520080122800ull,
-                0x100902022202010Aull,
-                0x04081A0816002000ull,
-                0x0000681208005000ull,
-                0x8170840041008802ull,
-                0x0A00004200810805ull,
-                0x0830404408210100ull,
-                0x2602208106006102ull,
-                0x1048300680802628ull,
-                0x2602208106006102ull,
-                0x0602010120110040ull,
-                0x0941010801043000ull,
-                0x000040440A210428ull,
-                0x0008240020880021ull,
-                0x0400002012048200ull,
-                0x00AC102001210220ull,
-                0x0220021002009900ull,
-                0x84440C080A013080ull,
-                0x0001008044200440ull,
-                0x0004C04410841000ull,
-                0x2000500104011130ull,
-                0x1A0C010011C20229ull,
-                0x0044800112202200ull,
-                0x0434804908100424ull,
-                0x0300404822C08200ull,
-                0x48081010008A2A80ull
-            } };
-
-            alignas(64) static EnumArray<Square, Bitboard> g_rookMasks;
-            alignas(64) static EnumArray<Square, std::uint8_t> g_rookShifts;
-            alignas(64) static EnumArray<Square, const Bitboard*> g_rookAttacks;
-
-            alignas(64) static EnumArray<Square, Bitboard> g_bishopMasks;
-            alignas(64) static EnumArray<Square, std::uint8_t> g_bishopShifts;
-            alignas(64) static EnumArray<Square, const Bitboard*> g_bishopAttacks;
-
-            alignas(64) static std::array<Bitboard, 102400> g_allRookAttacks;
-            alignas(64) static std::array<Bitboard, 5248> g_allBishopAttacks;
-
-            inline Bitboard bishopAttacks(Square s, Bitboard occupied)
-            {
-                const std::size_t idx =
-                    (occupied & fancy_magics::g_bishopMasks[s]).bits()
-                    * fancy_magics::g_bishopMagics[s]
-                    >> fancy_magics::g_bishopShifts[s];
-
-                return fancy_magics::g_bishopAttacks[s][idx];
+            // 左侧河流 (Left river): files b,c × ranks 4,5,6
+            for (int file = 1; file <= 2; ++file) {  // b=1, c=2
+                for (int rank = 3; rank <= 5; ++rank) {  // rank4=3, rank5=4, rank6=5 (0-indexed)
+                    water |= Bitboard::square(Square(File(file), Rank(rank)));
+                }
             }
 
-            inline Bitboard rookAttacks(Square s, Bitboard occupied)
-            {
-                const std::size_t idx =
-                    (occupied & fancy_magics::g_rookMasks[s]).bits()
-                    * fancy_magics::g_rookMagics[s]
-                    >> fancy_magics::g_rookShifts[s];
-
-                return fancy_magics::g_rookAttacks[s][idx];
+            // 右侧河流 (Right river): files e,f × ranks 4,5,6
+            for (int file = 4; file <= 5; ++file) {  // e=4, f=5
+                for (int rank = 3; rank <= 5; ++rank) {  // rank4=3, rank5=4, rank6=5
+                    water |= Bitboard::square(Square(File(file), Rank(rank)));
+                }
             }
+
+            return water;
         }
+
+        // 白方兽穴 (White's den): d1 (rank 0)
+        inline constexpr Square whiteDen()
+        {
+            return Square(File(3), Rank(0));  // d1
+        }
+
+        // 黑方兽穴 (Black's den): d9 (rank 8)
+        inline constexpr Square blackDen()
+        {
+            return Square(File(3), Rank(8));  // d9
+        }
+
+        // 白方陷阱 (White's traps): c1, d2, e1
+        inline Bitboard whiteTraps()
+        {
+            Bitboard traps = Bitboard::none();
+            traps |= Bitboard::square(Square(File(2), Rank(0)));  // c1
+            traps |= Bitboard::square(Square(File(3), Rank(1)));  // d2
+            traps |= Bitboard::square(Square(File(4), Rank(0)));  // e1
+            return traps;
+        }
+
+        // 黑方陷阱 (Black's traps): c9, d8, e9
+        inline Bitboard blackTraps()
+        {
+            Bitboard traps = Bitboard::none();
+            traps |= Bitboard::square(Square(File(2), Rank(8)));  // c9
+            traps |= Bitboard::square(Square(File(3), Rank(7)));  // d8
+            traps |= Bitboard::square(Square(File(4), Rank(8)));  // e9
+            return traps;
+        }
+
+        // 基本单步移动攻击（所有非跳河棋子）
+        // Basic one-square attacks (all non-river-jumping pieces)
+        // 返回从指定格子出发，向四个正交方向移动一格能到达的所有格子
+        // Returns all squares reachable by moving one square orthogonally
+        inline Bitboard adjacentSquares(Square sq)
+        {
+            Bitboard attacks = Bitboard::none();
+
+            const File f = sq.file();
+            const Rank r = sq.rank();
+
+            // 向上 (North): rank + 1
+            if (r < Rank(8)) {
+                attacks |= Bitboard::square(Square(f, r + 1));
+            }
+
+            // 向下 (South): rank - 1
+            if (r > Rank(0)) {
+                attacks |= Bitboard::square(Square(f, r - 1));
+            }
+
+            // 向右 (East): file + 1
+            if (f < File(6)) {
+                attacks |= Bitboard::square(Square(f + 1, r));
+            }
+
+            // 向左 (West): file - 1
+            if (f > File(0)) {
+                attacks |= Bitboard::square(Square(f - 1, r));
+            }
+
+            return attacks;
+        }
+
+        // 狮/虎跳河目标检测
+        // Lion/Tiger river jump target detection
+        // 返回从sq出发跳河能到达的所有陆地格子（不考虑老鼠阻挡）
+        // Returns all land squares reachable by river jump from sq (ignoring rat blockers)
+        // TODO: 实际移动生成时需要额外检查水域中是否有老鼠阻挡
+        // Actual move generation must additionally check for rats in water
+        //
+        // 跳河规则：狮/虎可以水平或垂直跳过整片水域
+        // River jump rules: Lion/Tiger can jump horizontally or vertically across entire water
+        // 水域1 (左侧): b4-c6 (files b-c, ranks 4-6)
+        // 水域2 (右侧): e4-f6 (files e-f, ranks 4-6)
+        //
+        // 水平跳跃 (Horizontal jumps):
+        // - 从a列跳到d列（跨越左侧水域）
+        // - 从d列跳到a列或g列（两个方向）
+        // - 从g列跳到d列（跨越右侧水域）
+        //
+        // 垂直跳跃 (Vertical jumps):
+        // - 从rank3跳到rank7（跨越水域）
+        // - 从rank7跳到rank3（跨越水域）
+        inline Bitboard riverJumpTargets(Square sq)
+        {
+            Bitboard targets = Bitboard::none();
+
+            const File f = sq.file();
+            const Rank r = sq.rank();
+
+            // 水平跳跃：仅在水域相关行（rank 4-6, 即0-indexed的3-5）
+            // Horizontal jumps: only on water-related ranks (4-6)
+            if (r >= Rank(3) && r <= Rank(5)) {
+                // 从a列跳过左侧河流到d列
+                if (f == File(0)) {  // fileA
+                    targets |= Bitboard::square(Square(File(3), r));  // to fileD
+                }
+                // 从d列跳回a列
+                else if (f == File(3)) {  // fileD
+                    targets |= Bitboard::square(Square(File(0), r));  // to fileA
+                }
+
+                // 从d列跳过右侧河流到g列
+                if (f == File(3)) {  // fileD
+                    targets |= Bitboard::square(Square(File(6), r));  // to fileG
+                }
+                // 从g列跳回d列
+                else if (f == File(6)) {  // fileG
+                    targets |= Bitboard::square(Square(File(3), r));  // to fileD
+                }
+            }
+
+            // 垂直跳跃：仅在水域相关列（files b,c,e,f）
+            // Vertical jumps: only on water-related files (b,c,e,f)
+            if (f >= File(1) && f <= File(2)) {  // files b-c (left river)
+                // 从rank3向上跳到rank7
+                if (r == Rank(2)) {  // rank3 (0-indexed: 2)
+                    targets |= Bitboard::square(Square(f, Rank(6)));  // to rank7 (0-indexed: 6)
+                }
+                // 从rank7向下跳到rank3
+                else if (r == Rank(6)) {  // rank7 (0-indexed: 6)
+                    targets |= Bitboard::square(Square(f, Rank(2)));  // to rank3 (0-indexed: 2)
+                }
+            }
+            if (f >= File(4) && f <= File(5)) {  // files e-f (right river)
+                // 从rank3向上跳到rank7
+                if (r == Rank(2)) {  // rank3 (0-indexed: 2)
+                    targets |= Bitboard::square(Square(f, Rank(6)));  // to rank7 (0-indexed: 6)
+                }
+                // 从rank7向下跳到rank3
+                else if (r == Rank(6)) {  // rank7 (0-indexed: 6)
+                    targets |= Bitboard::square(Square(f, Rank(2)));  // to rank3 (0-indexed: 2)
+                }
+            }
+
+            return targets;
+        }
+
+        // 位棋盘辅助函数 (Bitboard helper functions)
 
         [[nodiscard]] constexpr Bitboard square(Square sq)
         {
@@ -2645,19 +2662,20 @@ namespace chess
             return Bitboard::file(file);
         }
 
-        [[nodiscard]] constexpr Bitboard color(Color c)
-        {
-            return Bitboard::color(c);
-        }
+        // 斗兽棋不使用棋盘格颜色概念，移除 color() 函数
+        // Jungle Chess doesn't use board square colors, removed color() function
 
         [[nodiscard]] constexpr Bitboard before(Square sq)
         {
             return Bitboard::fromBits(nbitmask<std::uint64_t>[ordinal(sq)]);
         }
 
-        constexpr Bitboard lightSquares = bb::color(Color::White);
-        constexpr Bitboard darkSquares = bb::color(Color::Black);
+        // 斗兽棋不区分黑白格，移除相关常量
+        // Jungle Chess doesn't distinguish light/dark squares, removed related constants
 
+
+        // 斗兽棋列位棋盘常量 (Jungle Chess file bitboards)
+        // 7列: a-g
         constexpr Bitboard fileA = bb::file(chess::fileA);
         constexpr Bitboard fileB = bb::file(chess::fileB);
         constexpr Bitboard fileC = bb::file(chess::fileC);
@@ -2665,8 +2683,10 @@ namespace chess
         constexpr Bitboard fileE = bb::file(chess::fileE);
         constexpr Bitboard fileF = bb::file(chess::fileF);
         constexpr Bitboard fileG = bb::file(chess::fileG);
-        constexpr Bitboard fileH = bb::file(chess::fileH);
+        // 斗兽棋没有 fileH (Jungle Chess has no fileH - only 7 files)
 
+        // 斗兽棋行位棋盘常量 (Jungle Chess rank bitboards)
+        // 9行: 1-9
         constexpr Bitboard rank1 = bb::rank(chess::rank1);
         constexpr Bitboard rank2 = bb::rank(chess::rank2);
         constexpr Bitboard rank3 = bb::rank(chess::rank3);
@@ -2675,7 +2695,12 @@ namespace chess
         constexpr Bitboard rank6 = bb::rank(chess::rank6);
         constexpr Bitboard rank7 = bb::rank(chess::rank7);
         constexpr Bitboard rank8 = bb::rank(chess::rank8);
+        constexpr Bitboard rank9 = bb::rank(chess::rank9);
 
+        // 斗兽棋所有格子的位棋盘常量 (Jungle Chess individual square bitboards)
+        // 7列×9行 = 63格 (7 files × 9 ranks = 63 squares)
+
+        // a列 (file a)
         constexpr Bitboard a1 = bb::square(chess::a1);
         constexpr Bitboard a2 = bb::square(chess::a2);
         constexpr Bitboard a3 = bb::square(chess::a3);
@@ -2684,7 +2709,9 @@ namespace chess
         constexpr Bitboard a6 = bb::square(chess::a6);
         constexpr Bitboard a7 = bb::square(chess::a7);
         constexpr Bitboard a8 = bb::square(chess::a8);
+        constexpr Bitboard a9 = bb::square(chess::a9);
 
+        // b列 (file b)
         constexpr Bitboard b1 = bb::square(chess::b1);
         constexpr Bitboard b2 = bb::square(chess::b2);
         constexpr Bitboard b3 = bb::square(chess::b3);
@@ -2693,7 +2720,9 @@ namespace chess
         constexpr Bitboard b6 = bb::square(chess::b6);
         constexpr Bitboard b7 = bb::square(chess::b7);
         constexpr Bitboard b8 = bb::square(chess::b8);
+        constexpr Bitboard b9 = bb::square(chess::b9);
 
+        // c列 (file c)
         constexpr Bitboard c1 = bb::square(chess::c1);
         constexpr Bitboard c2 = bb::square(chess::c2);
         constexpr Bitboard c3 = bb::square(chess::c3);
@@ -2702,7 +2731,9 @@ namespace chess
         constexpr Bitboard c6 = bb::square(chess::c6);
         constexpr Bitboard c7 = bb::square(chess::c7);
         constexpr Bitboard c8 = bb::square(chess::c8);
+        constexpr Bitboard c9 = bb::square(chess::c9);
 
+        // d列 (file d)
         constexpr Bitboard d1 = bb::square(chess::d1);
         constexpr Bitboard d2 = bb::square(chess::d2);
         constexpr Bitboard d3 = bb::square(chess::d3);
@@ -2711,7 +2742,9 @@ namespace chess
         constexpr Bitboard d6 = bb::square(chess::d6);
         constexpr Bitboard d7 = bb::square(chess::d7);
         constexpr Bitboard d8 = bb::square(chess::d8);
+        constexpr Bitboard d9 = bb::square(chess::d9);
 
+        // e列 (file e)
         constexpr Bitboard e1 = bb::square(chess::e1);
         constexpr Bitboard e2 = bb::square(chess::e2);
         constexpr Bitboard e3 = bb::square(chess::e3);
@@ -2720,7 +2753,9 @@ namespace chess
         constexpr Bitboard e6 = bb::square(chess::e6);
         constexpr Bitboard e7 = bb::square(chess::e7);
         constexpr Bitboard e8 = bb::square(chess::e8);
+        constexpr Bitboard e9 = bb::square(chess::e9);
 
+        // f列 (file f)
         constexpr Bitboard f1 = bb::square(chess::f1);
         constexpr Bitboard f2 = bb::square(chess::f2);
         constexpr Bitboard f3 = bb::square(chess::f3);
@@ -2729,7 +2764,9 @@ namespace chess
         constexpr Bitboard f6 = bb::square(chess::f6);
         constexpr Bitboard f7 = bb::square(chess::f7);
         constexpr Bitboard f8 = bb::square(chess::f8);
+        constexpr Bitboard f9 = bb::square(chess::f9);
 
+        // g列 (file g)
         constexpr Bitboard g1 = bb::square(chess::g1);
         constexpr Bitboard g2 = bb::square(chess::g2);
         constexpr Bitboard g3 = bb::square(chess::g3);
@@ -2738,19 +2775,22 @@ namespace chess
         constexpr Bitboard g6 = bb::square(chess::g6);
         constexpr Bitboard g7 = bb::square(chess::g7);
         constexpr Bitboard g8 = bb::square(chess::g8);
+        constexpr Bitboard g9 = bb::square(chess::g9);
 
-        constexpr Bitboard h1 = bb::square(chess::h1);
-        constexpr Bitboard h2 = bb::square(chess::h2);
-        constexpr Bitboard h3 = bb::square(chess::h3);
-        constexpr Bitboard h4 = bb::square(chess::h4);
-        constexpr Bitboard h5 = bb::square(chess::h5);
-        constexpr Bitboard h6 = bb::square(chess::h6);
-        constexpr Bitboard h7 = bb::square(chess::h7);
-        constexpr Bitboard h8 = bb::square(chess::h8);
-
+        // 斗兽棋 between() 函数：用于检测狮虎跳河时水域中是否有老鼠阻挡
+        // Jungle Chess between() function: used to check for rats blocking lion/tiger river jumps
+        // 返回两个格子之间的所有格子（不包括端点）
+        // Returns all squares between two squares (excluding endpoints)
+        // 在斗兽棋中主要用于：检查跳河路径上的水域格子是否有棋子（老鼠）
+        // In Jungle Chess, mainly used for: checking if water squares on jump path contain pieces (rats)
         [[nodiscard]] Bitboard between(Square s1, Square s2);
 
-        [[nodiscard]] Bitboard line(Square s1, Square s2);
+        // 斗兽棋不需要 line() 函数
+        // Jungle Chess doesn't need line() function
+        // line() 用于国际象棋判断两格是否在同一直线（含对角线）上
+        // line() is used in chess to check if two squares are on the same line (including diagonals)
+        // 斗兽棋只需要检查正交方向（水平/垂直），可以直接用 file/rank 比较
+        // Jungle Chess only needs orthogonal directions (horizontal/vertical), can directly compare file/rank
 
         template <PieceType PieceTypeV>
         [[nodiscard]] Bitboard pseudoAttacks(Square sq);
