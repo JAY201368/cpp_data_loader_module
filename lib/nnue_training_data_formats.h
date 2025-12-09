@@ -2540,6 +2540,7 @@ namespace chess
         // Basic one-square attacks (all non-river-jumping pieces)
         // 返回从指定格子出发，向四个正交方向移动一格能到达的所有格子
         // Returns all squares reachable by moving one square orthogonally
+        // TODO: 考虑水域? 
         inline Bitboard adjacentSquares(Square sq)
         {
             Bitboard attacks = Bitboard::none();
