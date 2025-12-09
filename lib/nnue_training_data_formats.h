@@ -1941,6 +1941,9 @@ namespace chess
         }
     };
 
+    // 斗兽棋位棋盘迭代器 (Jungle Chess Bitboard Iterator)
+    // 7×9棋盘，63个格子，使用64位整数的低63位
+    // 7×9 board, 63 squares, using lower 63 bits of uint64_t
     struct BitboardIterator
     {
         using value_type = Square;
@@ -2001,12 +2004,15 @@ namespace chess
         }
     };
 
+    // 斗兽棋位棋盘 (Jungle Chess Bitboard)
+    // 棋盘: 7列×9行 = 63格 (7 files × 9 ranks = 63 squares)
+    // File代表列(a-g), Rank代表行(1-9)
+    // 位序: a1=bit0, b1=bit1, ..., g1=bit6, a2=bit7, ..., g9=bit62
+    // Bit order: a1=bit0, b1=bit1, ..., g1=bit6, a2=bit7, ..., g9=bit62
+    // 每行7位，共9行。高位(bit63)未使用
+    // Each rank uses 7 bits, 9 ranks total. Bit 63 is unused.
     struct Bitboard
     {
-        // bits counted from the LSB
-        // order is A1 B2 ... G8 H8
-        // just like in Square
-
     public:
         constexpr Bitboard() noexcept :
             m_squares(0)
@@ -2020,18 +2026,19 @@ namespace chess
             assert(sq.isOk());
         }
 
+        // 斗兽棋每行7格，一行的掩码是0x7F（二进制0111_1111）
+        // Jungle Chess has 7 squares per rank, mask is 0x7F (binary 0111_1111)
         constexpr explicit Bitboard(Rank r) noexcept :
-            m_squares(static_cast<std::uint64_t>(0xFFULL) << (ordinal(r) * 8))
+            m_squares(static_cast<std::uint64_t>(0x7FULL) << (ordinal(r) * 7))
         {
         }
 
+        // 斗兽棋列掩码：每隔7位置1，共9次（对应9行）
+        // File mask: set bit every 7 positions, 9 times (for 9 ranks)
+        // 例如 fileA: bit 0, 7, 14, 21, 28, 35, 42, 49, 56
+        // Example fileA: bits 0, 7, 14, 21, 28, 35, 42, 49, 56
         constexpr explicit Bitboard(File f) noexcept :
-            m_squares(static_cast<std::uint64_t>(0x0101010101010101ULL) << ordinal(f))
-        {
-        }
-
-        constexpr explicit Bitboard(Color c) noexcept :
-            m_squares(c == Color::White ? 0xAA55AA55AA55AA55ULL : ~0xAA55AA55AA55AA55ULL)
+            m_squares(computeFileMask(ordinal(f)))
         {
         }
 
@@ -2040,16 +2047,29 @@ namespace chess
         {
         }
 
-        // files A..file inclusive
+        // 计算列掩码：对于7×9棋盘，第f列的掩码
+        // Compute file mask: for 7×9 board, mask for file f
+        static constexpr std::uint64_t computeFileMask(int f) noexcept
+        {
+            std::uint64_t mask = 0;
+            for (int r = 0; r < 9; ++r)
+            {
+                mask |= (1ULL << (f + r * 7));
+            }
+            return mask;
+        }
+
+        // 斗兽棋：a列到指定列(含)的累积掩码
+        // Jungle Chess: cumulative mask from file A to specified file (inclusive)
+        // 7列，每列在9行中的所有位
         static constexpr EnumArray<File, std::uint64_t> m_filesUpToBB{
-            0x0101010101010101ULL,
-            0x0303030303030303ULL,
-            0x0707070707070707ULL,
-            0x0F0F0F0F0F0F0F0FULL,
-            0x1F1F1F1F1F1F1F1FULL,
-            0x3F3F3F3F3F3F3F3FULL,
-            0x7F7F7F7F7F7F7F7FULL,
-            0xFFFFFFFFFFFFFFFFULL
+            computeFileMask(0),                                                      // fileA
+            computeFileMask(0) | computeFileMask(1),                                // fileA-B
+            computeFileMask(0) | computeFileMask(1) | computeFileMask(2),          // fileA-C
+            computeFileMask(0) | computeFileMask(1) | computeFileMask(2) | computeFileMask(3),  // fileA-D
+            computeFileMask(0) | computeFileMask(1) | computeFileMask(2) | computeFileMask(3) | computeFileMask(4),  // fileA-E
+            computeFileMask(0) | computeFileMask(1) | computeFileMask(2) | computeFileMask(3) | computeFileMask(4) | computeFileMask(5),  // fileA-F
+            computeFileMask(0) | computeFileMask(1) | computeFileMask(2) | computeFileMask(3) | computeFileMask(4) | computeFileMask(5) | computeFileMask(6)   // fileA-G
         };
 
     public:
@@ -2061,7 +2081,9 @@ namespace chess
 
         [[nodiscard]] static constexpr Bitboard all()
         {
-            return ~none();
+            // 斗兽棋共63格，全部置1：(1ULL << 63) - 1
+            // Jungle Chess has 63 squares, all set: (1ULL << 63) - 1
+            return Bitboard::fromBits((1ULL << 63) - 1);
         }
 
         [[nodiscard]] static constexpr Bitboard square(Square sq)
@@ -2077,11 +2099,6 @@ namespace chess
         [[nodiscard]] static constexpr Bitboard rank(Rank r)
         {
             return Bitboard(r);
-        }
-
-        [[nodiscard]] static constexpr Bitboard color(Color c)
-        {
-            return Bitboard(c);
         }
 
         [[nodiscard]] static constexpr Bitboard fromBits(std::uint64_t bits)
@@ -2159,37 +2176,41 @@ namespace chess
             return lhs.m_squares != rhs.m_squares;
         }
 
+        // 斗兽棋垂直移动：每行7格，垂直移动需乘以7
+        // Jungle Chess vertical shift: 7 squares per rank, multiply by 7
         constexpr Bitboard shiftedVertically(int ranks) const
         {
             if (ranks >= 0)
             {
-                return fromBits(m_squares << 8 * ranks);
+                return fromBits(m_squares << 7 * ranks);
             }
             else
             {
-                return fromBits(m_squares >> -8 * ranks);
+                return fromBits(m_squares >> -7 * ranks);
             }
         }
 
+        // 斗兽棋棋盘移位：模板参数版本
+        // Jungle Chess bitboard shift: template parameter version
         template <int files, int ranks>
         constexpr void shift()
         {
-            static_assert(files >= -7);
-            static_assert(ranks >= -7);
-            static_assert(files <= 7);
-            static_assert(ranks <= 7);
+            static_assert(files >= -6);  // 斗兽棋列范围 -6 to +6
+            static_assert(ranks >= -8);  // 斗兽棋行范围 -8 to +8
+            static_assert(files <= 6);
+            static_assert(ranks <= 8);
 
             if constexpr (files != 0)
             {
                 constexpr Bitboard mask =
                     files > 0
-                    ? Bitboard::betweenFiles(fileA, fileH - files)
-                    : Bitboard::betweenFiles(fileA - files, fileH);
+                    ? Bitboard::betweenFiles(fileA, fileG - files)  // fileG is last file (6)
+                    : Bitboard::betweenFiles(fileA - files, fileG);
 
                 m_squares &= mask.m_squares;
             }
 
-            constexpr int shift = files + ranks * 8;
+            constexpr int shift = files + ranks * 7;  // 斗兽棋每行7格
             if constexpr (shift == 0)
             {
                 return;
@@ -2213,24 +2234,26 @@ namespace chess
             return bbCpy;
         }
 
+        // 斗兽棋棋盘移位：运行时参数版本
+        // Jungle Chess bitboard shift: runtime parameter version
         constexpr void shift(Offset offset)
         {
-            assert(offset.files >= -7);
-            assert(offset.ranks >= -7);
-            assert(offset.files <= 7);
-            assert(offset.ranks <= 7);
+            assert(offset.files >= -6);
+            assert(offset.ranks >= -8);
+            assert(offset.files <= 6);
+            assert(offset.ranks <= 8);
 
             if (offset.files != 0)
             {
                 const Bitboard mask =
                     offset.files > 0
-                    ? Bitboard::betweenFiles(fileA, fileH - offset.files)
-                    : Bitboard::betweenFiles(fileA - offset.files, fileH);
+                    ? Bitboard::betweenFiles(fileA, fileG - offset.files)
+                    : Bitboard::betweenFiles(fileA - offset.files, fileG);
 
                 m_squares &= mask.m_squares;
             }
 
-            const int shift = offset.files + offset.ranks * 8;
+            const int shift = offset.files + offset.ranks * 7;  // 斗兽棋每行7格
             if (shift < 0)
             {
                 m_squares >>= -shift;
@@ -2251,48 +2274,15 @@ namespace chess
         [[nodiscard]] constexpr Bitboard operator~() const
         {
             Bitboard bb = *this;
-            bb.m_squares = ~m_squares;
+            // 斗兽棋只有63位有效，取反后需要清除第63位
+            // Jungle Chess only uses 63 bits, clear bit 63 after negation
+            bb.m_squares = ~m_squares & ((1ULL << 63) - 1);
             return bb;
         }
 
-        constexpr Bitboard& operator^=(Color c)
-        {
-            m_squares ^= Bitboard(c).m_squares;
-            return *this;
-        }
-
-        constexpr Bitboard& operator&=(Color c)
-        {
-            m_squares &= Bitboard(c).m_squares;
-            return *this;
-        }
-
-        constexpr Bitboard& operator|=(Color c)
-        {
-            m_squares |= Bitboard(c).m_squares;
-            return *this;
-        }
-
-        [[nodiscard]] constexpr Bitboard operator^(Color c) const
-        {
-            Bitboard bb = *this;
-            bb ^= c;
-            return bb;
-        }
-
-        [[nodiscard]] constexpr Bitboard operator&(Color c) const
-        {
-            Bitboard bb = *this;
-            bb &= c;
-            return bb;
-        }
-
-        [[nodiscard]] constexpr Bitboard operator|(Color c) const
-        {
-            Bitboard bb = *this;
-            bb |= c;
-            return bb;
-        }
+        // 斗兽棋不需要Color相关的位运算操作
+        // Jungle Chess doesn't need Color-related bitboard operations
+        // (removed Color operator overloads)
 
         constexpr Bitboard& operator^=(Square sq)
         {
